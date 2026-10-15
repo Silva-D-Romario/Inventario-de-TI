@@ -17,4 +17,3 @@ def test_health_check_returns_application_status(client: Client) -> None:
 @pytest.mark.django_db
 def test_health_check_rejects_post(client: Client) -> None:
     assert client.post("/api/v1/health/").status_code == 405
-

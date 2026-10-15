@@ -11,4 +11,3 @@ def health_check(_request: object) -> JsonResponse:
             "status": "UP",
         }
     )
-
