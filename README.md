@@ -37,9 +37,9 @@ docker compose up --build
 
 Serviços disponíveis:
 
-- API: `http://localhost:8000/api/v1/health/`
-- Swagger: `http://localhost:8000/api/docs/`
-- Administração Django: `http://localhost:8000/admin/`
+- API: `http://localhost:18000/api/v1/health/`
+- Swagger: `http://localhost:18000/api/docs/`
+- Administração Django: `http://localhost:18000/admin/`
 
 Para encerrar:
 

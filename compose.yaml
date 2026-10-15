@@ -13,7 +13,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     ports:
-      - "8000:8000"
+      - "${APP_PORT:-18000}:8000"
     depends_on:
       database:
         condition: service_healthy
