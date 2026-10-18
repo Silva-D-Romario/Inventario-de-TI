@@ -79,7 +79,7 @@ class AssetStatusViewSet(ReferenceViewSet):
 
 
 @extend_schema_view(list=extend_schema(tags=["Ativos"]))
-class AssetViewSet(viewsets.ModelViewSet):
+class AssetViewSet(ProtectedDestroyMixin, viewsets.ModelViewSet):
     queryset = Asset.objects.select_related(
         "category", "sector", "status", "responsible", "created_by"
     )

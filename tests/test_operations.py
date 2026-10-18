@@ -348,6 +348,17 @@ def test_responsible_linked_to_history_cannot_be_deleted(
 
 
 @pytest.mark.django_db
+def test_asset_with_movement_history_cannot_be_deleted(api_client, admin_user, asset, responsible):
+    authenticate(api_client, admin_user)
+    api_client.post(reverse("loan-list"), loan_payload(asset, responsible), format="json")
+
+    response = api_client.delete(reverse("asset-detail", kwargs={"pk": asset.pk}))
+
+    assert response.status_code == 409
+    assert Asset.objects.filter(pk=asset.pk).exists()
+
+
+@pytest.mark.django_db
 def test_admin_can_delete_unused_responsible(api_client, admin_user, responsible):
     authenticate(api_client, admin_user)
 
