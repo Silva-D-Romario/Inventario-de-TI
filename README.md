@@ -12,6 +12,9 @@ Demonstrar desenvolvimento backend com Django, regras de negócio, autenticaçã
 - Perfis de usuário, técnico e administrador.
 - Edição do próprio perfil.
 - Gestão de papéis e ativação de contas restrita a administradores.
+- CRUD de ativos, categorias, setores e status.
+- Pesquisa, filtros, ordenação e paginação do inventário.
+- Proteção contra exclusão de cadastros vinculados a ativos.
 - Health check e documentação OpenAPI/Swagger.
 
 ## Stack planejada
@@ -97,6 +100,48 @@ O cadastro público sempre cria o perfil `USER`. Apenas um administrador pode pr
 docker compose exec web python manage.py createsuperuser
 ```
 
+## Inventário
+
+| Recurso | Endpoint | Usuário | Técnico | Administrador |
+| --- | --- | --- | --- | --- |
+| Categorias | `/api/v1/inventory/categories/` | Consultar | Consultar | CRUD |
+| Setores | `/api/v1/inventory/sectors/` | Consultar | Consultar | CRUD |
+| Status | `/api/v1/inventory/statuses/` | Consultar | Consultar | CRUD |
+| Ativos | `/api/v1/inventory/assets/` | Consultar | Criar e atualizar | CRUD |
+
+O sistema cria automaticamente os status `Disponível`, `Em uso`, `Em manutenção` e `Baixado`.
+
+Exemplo de cadastro de ativo por técnico ou administrador:
+
+```bash
+curl -X POST http://localhost:18000/api/v1/inventory/assets/ \
+  -H "Authorization: Bearer SEU_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "asset_tag": "PAT-001",
+    "name": "Notebook Dell Latitude",
+    "category": 1,
+    "sector": 1,
+    "status": 1,
+    "serial_number": "SN-001",
+    "manufacturer": "Dell",
+    "model": "Latitude 5440",
+    "acquisition_date": "2026-10-18",
+    "purchase_value": "4500.00"
+  }'
+```
+
+Filtros disponíveis para ativos:
+
+```text
+?category=1
+?sector=1
+?status=1
+?search=Dell
+?ordering=-updated_at
+?acquisition_date__gte=2026-01-01&acquisition_date__lte=2026-12-31
+```
+
 Para encerrar:
 
 ```bash
@@ -126,7 +171,7 @@ python manage.py check
 
 1. ✅ Fundação Django, banco, containers, testes e CI.
 2. ✅ Autenticação JWT e perfis de acesso.
-3. Cadastro de ativos, categorias, setores e status.
+3. ✅ Cadastro de ativos, categorias, setores e status.
 4. Empréstimos, responsáveis e movimentações.
 5. Manutenções, garantias, custos e anexos.
 6. QR Code e auditoria.
