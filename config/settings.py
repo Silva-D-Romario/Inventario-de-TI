@@ -108,7 +108,7 @@ REST_FRAMEWORK = {
 SPECTACULAR_SETTINGS = {
     "TITLE": "Inventário de TI API",
     "DESCRIPTION": "API para gestão de ativos, responsáveis e manutenções.",
-    "VERSION": "0.4.0",
+    "VERSION": "0.5.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
 
