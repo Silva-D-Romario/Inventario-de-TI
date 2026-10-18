@@ -15,6 +15,8 @@ Demonstrar desenvolvimento backend com Django, regras de negócio, autenticaçã
 - CRUD de ativos, categorias, setores e status.
 - Pesquisa, filtros, ordenação e paginação do inventário.
 - Proteção contra exclusão de cadastros vinculados a ativos.
+- Gestão de responsáveis, empréstimos, devoluções e transferências.
+- Histórico imutável de movimentações com usuário executor.
 - Health check e documentação OpenAPI/Swagger.
 
 ## Stack planejada
@@ -142,6 +144,32 @@ Filtros disponíveis para ativos:
 ?acquisition_date__gte=2026-01-01&acquisition_date__lte=2026-12-31
 ```
 
+## Empréstimos e movimentações
+
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| `GET/POST` | `/api/v1/inventory/responsible-people/` | Consultar e cadastrar responsáveis |
+| `GET/POST` | `/api/v1/inventory/loans/` | Consultar e registrar empréstimos |
+| `POST` | `/api/v1/inventory/loans/{id}/return/` | Registrar devolução |
+| `POST` | `/api/v1/inventory/assets/{id}/transfer/` | Transferir ou atribuir um ativo |
+| `GET` | `/api/v1/inventory/movements/` | Consultar o histórico imutável |
+
+Exemplo de empréstimo:
+
+```bash
+curl -X POST http://localhost:18000/api/v1/inventory/loans/ \
+  -H "Authorization: Bearer SEU_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "asset": 1,
+    "borrower": 1,
+    "expected_return_date": "2026-10-30",
+    "notes": "Uso temporário em projeto"
+  }'
+```
+
+O empréstimo move o ativo para o setor do responsável e altera seu status para `Em uso`. A devolução restaura o setor de origem e o status `Disponível`. Essas operações usam transações e bloqueio de linha no banco para impedir empréstimos simultâneos do mesmo ativo.
+
 Para encerrar:
 
 ```bash
@@ -172,7 +200,7 @@ python manage.py check
 1. ✅ Fundação Django, banco, containers, testes e CI.
 2. ✅ Autenticação JWT e perfis de acesso.
 3. ✅ Cadastro de ativos, categorias, setores e status.
-4. Empréstimos, responsáveis e movimentações.
+4. ✅ Empréstimos, responsáveis e movimentações.
 5. Manutenções, garantias, custos e anexos.
 6. QR Code e auditoria.
 7. Dashboard e relatórios.
