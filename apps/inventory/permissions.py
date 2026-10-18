@@ -23,3 +23,16 @@ class AssetPermission(BasePermission):
         if request.method == "DELETE":
             return request.user.is_admin
         return request.user.is_admin or request.user.is_technician
+
+
+class OperationalPermission(BasePermission):
+    message = "Apenas técnicos ou administradores podem realizar esta operação."
+
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
+        if request.method in SAFE_METHODS:
+            return True
+        if request.method == "DELETE":
+            return request.user.is_admin
+        return request.user.is_admin or request.user.is_technician
