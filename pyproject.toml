@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "inventario-ti"
-version = "0.2.0"
+version = "0.3.0"
 description = "Sistema de inventario e gestao de ativos de TI"
 readme = "README.md"
 requires-python = ">=3.12"
