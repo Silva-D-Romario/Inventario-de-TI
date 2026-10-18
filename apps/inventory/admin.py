@@ -2,12 +2,16 @@ from django.contrib import admin
 
 from apps.inventory.models import (
     Asset,
+    AssetAttachment,
+    AssetCost,
     AssetMovement,
     AssetStatus,
     Category,
     Loan,
+    Maintenance,
     ResponsiblePerson,
     Sector,
+    Warranty,
 )
 
 
@@ -86,6 +90,7 @@ class AssetMovementAdmin(admin.ModelAdmin):
         "to_sector",
         "responsible",
         "loan",
+        "maintenance",
         "performed_by",
         "notes",
         "created_at",
@@ -97,3 +102,41 @@ class AssetMovementAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(Maintenance)
+class MaintenanceAdmin(admin.ModelAdmin):
+    list_display = (
+        "asset",
+        "maintenance_type",
+        "status",
+        "started_at",
+        "completed_at",
+        "cost",
+    )
+    list_filter = ("maintenance_type", "status", "started_at")
+    search_fields = ("asset__asset_tag", "asset__name", "description", "provider")
+    readonly_fields = ("created_by", "created_at", "updated_at")
+
+
+@admin.register(Warranty)
+class WarrantyAdmin(admin.ModelAdmin):
+    list_display = ("asset", "provider", "contract_number", "start_date", "end_date")
+    list_filter = ("start_date", "end_date")
+    search_fields = ("asset__asset_tag", "asset__name", "provider", "contract_number")
+    readonly_fields = ("created_by", "created_at", "updated_at")
+
+
+@admin.register(AssetCost)
+class AssetCostAdmin(admin.ModelAdmin):
+    list_display = ("asset", "cost_type", "amount", "occurred_on", "maintenance")
+    list_filter = ("cost_type", "occurred_on")
+    search_fields = ("asset__asset_tag", "asset__name", "description")
+    readonly_fields = ("created_by", "created_at", "updated_at")
+
+
+@admin.register(AssetAttachment)
+class AssetAttachmentAdmin(admin.ModelAdmin):
+    list_display = ("asset", "description", "maintenance", "uploaded_by", "created_at")
+    search_fields = ("asset__asset_tag", "asset__name", "description")
+    readonly_fields = ("uploaded_by", "created_at", "updated_at")

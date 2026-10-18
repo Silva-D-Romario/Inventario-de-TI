@@ -1,4 +1,8 @@
+from decimal import Decimal
+from pathlib import Path
+
 from django.db.models import ProtectedError
+from django.http import FileResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import filters, mixins, status, viewsets
@@ -10,12 +14,16 @@ from rest_framework.response import Response
 
 from apps.inventory.models import (
     Asset,
+    AssetAttachment,
+    AssetCost,
     AssetMovement,
     AssetStatus,
     Category,
     Loan,
+    Maintenance,
     ResponsiblePerson,
     Sector,
+    Warranty,
 )
 from apps.inventory.permissions import (
     AssetPermission,
@@ -23,17 +31,26 @@ from apps.inventory.permissions import (
     OperationalPermission,
 )
 from apps.inventory.serializers import (
+    AssetAttachmentSerializer,
+    AssetCostSerializer,
     AssetMovementSerializer,
     AssetSerializer,
     AssetStatusSerializer,
     CategorySerializer,
+    FinishMaintenanceSerializer,
     LoanSerializer,
+    MaintenanceSerializer,
     ResponsiblePersonSerializer,
     ReturnLoanSerializer,
     SectorSerializer,
     TransferAssetSerializer,
+    WarrantySerializer,
 )
-from apps.inventory.services import InventoryOperationError, return_loan
+from apps.inventory.services import (
+    InventoryOperationError,
+    finish_maintenance,
+    return_loan,
+)
 
 
 class ProtectedDestroyMixin:
@@ -149,6 +166,124 @@ class LoanViewSet(
         return Response(LoanSerializer(returned_loan).data)
 
 
+@extend_schema_view(list=extend_schema(tags=["Manutenções"]))
+class MaintenanceViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    queryset = Maintenance.objects.select_related("asset", "created_by")
+    serializer_class = MaintenanceSerializer
+    permission_classes = [OperationalPermission]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = {
+        "asset": ["exact"],
+        "maintenance_type": ["exact"],
+        "status": ["exact"],
+        "started_at": ["exact", "gte", "lte"],
+        "completed_at": ["exact", "gte", "lte", "isnull"],
+    }
+    search_fields = ("asset__asset_tag", "asset__name", "description", "provider")
+    ordering_fields = ("started_at", "completed_at", "cost", "created_at")
+    ordering = ("-started_at", "-created_at")
+
+    def _finish(self, request, maintenance, final_status):
+        serializer = FinishMaintenanceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        cost = serializer.validated_data["cost"]
+        if final_status == Maintenance.Status.CANCELLED:
+            cost = Decimal("0.00")
+        try:
+            finished = finish_maintenance(
+                maintenance=maintenance,
+                final_status=final_status,
+                resolution_notes=serializer.validated_data["resolution_notes"],
+                cost=cost,
+                user=request.user,
+            )
+        except InventoryOperationError as error:
+            raise ValidationError({"detail": str(error)}) from error
+        return Response(self.get_serializer(finished).data)
+
+    @action(detail=True, methods=("post",))
+    def complete(self, request, pk=None):
+        return self._finish(request, self.get_object(), Maintenance.Status.COMPLETED)
+
+    @action(detail=True, methods=("post",))
+    def cancel(self, request, pk=None):
+        return self._finish(request, self.get_object(), Maintenance.Status.CANCELLED)
+
+
+@extend_schema_view(list=extend_schema(tags=["Garantias"]))
+class WarrantyViewSet(ProtectedDestroyMixin, viewsets.ModelViewSet):
+    queryset = Warranty.objects.select_related("asset", "created_by")
+    serializer_class = WarrantySerializer
+    permission_classes = [OperationalPermission]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = {
+        "asset": ["exact"],
+        "start_date": ["exact", "gte", "lte"],
+        "end_date": ["exact", "gte", "lte"],
+    }
+    search_fields = ("asset__asset_tag", "asset__name", "provider", "contract_number")
+    ordering_fields = ("start_date", "end_date", "created_at", "updated_at")
+    ordering = ("-end_date",)
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+
+@extend_schema_view(list=extend_schema(tags=["Custos"]))
+class AssetCostViewSet(ProtectedDestroyMixin, viewsets.ModelViewSet):
+    queryset = AssetCost.objects.select_related("asset", "maintenance", "created_by")
+    serializer_class = AssetCostSerializer
+    permission_classes = [OperationalPermission]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = {
+        "asset": ["exact"],
+        "maintenance": ["exact", "isnull"],
+        "cost_type": ["exact"],
+        "occurred_on": ["exact", "gte", "lte"],
+    }
+    search_fields = ("asset__asset_tag", "asset__name", "description")
+    ordering_fields = ("occurred_on", "amount", "created_at", "updated_at")
+    ordering = ("-occurred_on", "-created_at")
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+
+@extend_schema_view(list=extend_schema(tags=["Anexos"]))
+class AssetAttachmentViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    queryset = AssetAttachment.objects.select_related("asset", "maintenance", "uploaded_by")
+    serializer_class = AssetAttachmentSerializer
+    permission_classes = [OperationalPermission]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = {"asset": ["exact"], "maintenance": ["exact", "isnull"]}
+    search_fields = ("asset__asset_tag", "asset__name", "description")
+    ordering_fields = ("created_at",)
+    ordering = ("-created_at",)
+
+    def perform_create(self, serializer):
+        serializer.save(uploaded_by=self.request.user)
+
+    @action(detail=True, methods=("get",))
+    def download(self, request, pk=None):
+        attachment = self.get_object()
+        return FileResponse(
+            attachment.file.open("rb"),
+            as_attachment=True,
+            filename=Path(attachment.file.name).name,
+        )
+
+
 @extend_schema_view(list=extend_schema(tags=["Movimentações"]))
 class AssetMovementViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = AssetMovement.objects.select_related(
@@ -157,6 +292,7 @@ class AssetMovementViewSet(viewsets.ReadOnlyModelViewSet):
         "to_sector",
         "responsible",
         "loan",
+        "maintenance",
         "performed_by",
     )
     serializer_class = AssetMovementSerializer
