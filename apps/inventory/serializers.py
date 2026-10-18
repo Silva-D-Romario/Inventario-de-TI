@@ -1,18 +1,26 @@
+from pathlib import Path
+
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework import serializers
 
 from apps.inventory.models import (
     Asset,
+    AssetAttachment,
+    AssetCost,
     AssetMovement,
     AssetStatus,
     Category,
     Loan,
+    Maintenance,
     ResponsiblePerson,
     Sector,
+    Warranty,
 )
 from apps.inventory.services import (
     InventoryOperationError,
     create_loan,
+    create_maintenance,
     transfer_asset,
 )
 
@@ -222,6 +230,203 @@ class ReturnLoanSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True, default="")
 
 
+class MaintenanceSerializer(serializers.ModelSerializer):
+    asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True)
+    maintenance_type_display = serializers.CharField(
+        source="get_maintenance_type_display", read_only=True
+    )
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    created_by_username = serializers.CharField(source="created_by.username", read_only=True)
+    is_active = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Maintenance
+        fields = (
+            "id",
+            "asset",
+            "asset_tag",
+            "maintenance_type",
+            "maintenance_type_display",
+            "status",
+            "status_display",
+            "description",
+            "provider",
+            "started_at",
+            "completed_at",
+            "cost",
+            "resolution_notes",
+            "is_active",
+            "created_by_username",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "id",
+            "status",
+            "status_display",
+            "completed_at",
+            "cost",
+            "resolution_notes",
+            "is_active",
+            "created_by_username",
+            "created_at",
+            "updated_at",
+        )
+
+    def validate_started_at(self, value):
+        if value > timezone.localdate():
+            raise serializers.ValidationError("A manutenção não pode começar no futuro.")
+        return value
+
+    def create(self, validated_data):
+        validated_data.setdefault("started_at", timezone.localdate())
+        validated_data.setdefault("provider", "")
+        try:
+            return create_maintenance(user=self.context["request"].user, **validated_data)
+        except InventoryOperationError as error:
+            raise serializers.ValidationError({"detail": str(error)}) from error
+
+
+class FinishMaintenanceSerializer(serializers.Serializer):
+    resolution_notes = serializers.CharField(required=False, allow_blank=True, default="")
+    cost = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=0,
+        required=False,
+        default=0,
+    )
+
+
+class WarrantySerializer(serializers.ModelSerializer):
+    asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True)
+    created_by_username = serializers.CharField(source="created_by.username", read_only=True)
+    is_active = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Warranty
+        fields = (
+            "id",
+            "asset",
+            "asset_tag",
+            "provider",
+            "contract_number",
+            "start_date",
+            "end_date",
+            "coverage_notes",
+            "is_active",
+            "created_by_username",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "id",
+            "is_active",
+            "created_by_username",
+            "created_at",
+            "updated_at",
+        )
+
+    def validate(self, attrs):
+        start_date = attrs.get("start_date", getattr(self.instance, "start_date", None))
+        end_date = attrs.get("end_date", getattr(self.instance, "end_date", None))
+        if start_date and end_date and end_date < start_date:
+            raise serializers.ValidationError(
+                {"end_date": "A garantia não pode terminar antes da data de início."}
+            )
+        return attrs
+
+
+class AssetCostSerializer(serializers.ModelSerializer):
+    asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True)
+    cost_type_display = serializers.CharField(source="get_cost_type_display", read_only=True)
+    created_by_username = serializers.CharField(source="created_by.username", read_only=True)
+
+    class Meta:
+        model = AssetCost
+        fields = (
+            "id",
+            "asset",
+            "asset_tag",
+            "maintenance",
+            "cost_type",
+            "cost_type_display",
+            "amount",
+            "occurred_on",
+            "description",
+            "created_by_username",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "id",
+            "created_by_username",
+            "created_at",
+            "updated_at",
+        )
+
+    def validate_occurred_on(self, value):
+        if value > timezone.localdate():
+            raise serializers.ValidationError("A data do custo não pode estar no futuro.")
+        return value
+
+    def validate(self, attrs):
+        asset = attrs.get("asset", getattr(self.instance, "asset", None))
+        maintenance = attrs.get("maintenance", getattr(self.instance, "maintenance", None))
+        if maintenance and asset and maintenance.asset_id != asset.pk:
+            raise serializers.ValidationError(
+                {"maintenance": "A manutenção deve pertencer ao ativo informado."}
+            )
+        return attrs
+
+
+class AssetAttachmentSerializer(serializers.ModelSerializer):
+    asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True)
+    file_name = serializers.SerializerMethodField()
+    download_url = serializers.SerializerMethodField()
+    uploaded_by_username = serializers.CharField(source="uploaded_by.username", read_only=True)
+
+    class Meta:
+        model = AssetAttachment
+        fields = (
+            "id",
+            "asset",
+            "asset_tag",
+            "maintenance",
+            "file",
+            "file_name",
+            "download_url",
+            "description",
+            "uploaded_by_username",
+            "created_at",
+        )
+        read_only_fields = (
+            "id",
+            "file_name",
+            "download_url",
+            "uploaded_by_username",
+            "created_at",
+        )
+        extra_kwargs = {"file": {"write_only": True}}
+
+    def get_file_name(self, instance) -> str:
+        return Path(instance.file.name).name
+
+    def get_download_url(self, instance) -> str:
+        request = self.context.get("request")
+        path = reverse("asset-attachment-download", kwargs={"pk": instance.pk})
+        return request.build_absolute_uri(path) if request else path
+
+    def validate(self, attrs):
+        asset = attrs["asset"]
+        maintenance = attrs.get("maintenance")
+        if maintenance and maintenance.asset_id != asset.pk:
+            raise serializers.ValidationError(
+                {"maintenance": "A manutenção deve pertencer ao ativo informado."}
+            )
+        return attrs
+
+
 class TransferAssetSerializer(serializers.Serializer):
     to_sector = serializers.PrimaryKeyRelatedField(queryset=Sector.objects.filter(is_active=True))
     responsible = serializers.PrimaryKeyRelatedField(
@@ -269,6 +474,7 @@ class AssetMovementSerializer(serializers.ModelSerializer):
             "responsible",
             "responsible_name",
             "loan",
+            "maintenance",
             "performed_by_username",
             "notes",
             "created_at",

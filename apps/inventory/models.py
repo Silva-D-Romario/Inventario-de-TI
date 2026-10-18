@@ -1,10 +1,21 @@
 from decimal import Decimal
 
 from django.conf import settings
-from django.core.validators import MinValueValidator, RegexValidator
+from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator, MinValueValidator, RegexValidator
 from django.db import models
 from django.db.models.functions import Lower
 from django.utils import timezone
+
+
+def validate_attachment_size(uploaded_file):
+    max_size = 10 * 1024 * 1024
+    if uploaded_file.size > max_size:
+        raise ValidationError("O arquivo deve ter no máximo 10 MB.")
+
+
+def asset_attachment_path(instance, filename):
+    return f"inventory/assets/{instance.asset_id}/{filename}"
 
 
 class TimeStampedModel(models.Model):
@@ -217,12 +228,213 @@ class Loan(TimeStampedModel):
         return self.returned_at is None
 
 
+class Maintenance(TimeStampedModel):
+    class Type(models.TextChoices):
+        PREVENTIVE = "PREVENTIVE", "Preventiva"
+        CORRECTIVE = "CORRECTIVE", "Corretiva"
+
+    class Status(models.TextChoices):
+        IN_PROGRESS = "IN_PROGRESS", "Em andamento"
+        COMPLETED = "COMPLETED", "Concluída"
+        CANCELLED = "CANCELLED", "Cancelada"
+
+    asset = models.ForeignKey(
+        Asset,
+        on_delete=models.PROTECT,
+        related_name="maintenances",
+        verbose_name="ativo",
+    )
+    maintenance_type = models.CharField(
+        "tipo",
+        max_length=20,
+        choices=Type.choices,
+    )
+    status = models.CharField(
+        "status",
+        max_length=20,
+        choices=Status.choices,
+        default=Status.IN_PROGRESS,
+    )
+    description = models.TextField("descrição")
+    provider = models.CharField("prestador", max_length=150, blank=True)
+    started_at = models.DateField("iniciada em", default=timezone.localdate)
+    completed_at = models.DateField("concluída em", null=True, blank=True)
+    cost = models.DecimalField(
+        "custo",
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    resolution_notes = models.TextField("observações da conclusão", blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="created_maintenances",
+        null=True,
+        editable=False,
+        verbose_name="criado por",
+    )
+
+    class Meta:
+        ordering = ("-started_at", "-created_at")
+        verbose_name = "manutenção"
+        verbose_name_plural = "manutenções"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("asset",),
+                condition=models.Q(status="IN_PROGRESS"),
+                name="inventory_unique_active_maintenance_per_asset",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.asset.asset_tag} - {self.get_maintenance_type_display()}"
+
+    @property
+    def is_active(self):
+        return self.status == self.Status.IN_PROGRESS
+
+
+class Warranty(TimeStampedModel):
+    asset = models.ForeignKey(
+        Asset,
+        on_delete=models.PROTECT,
+        related_name="warranties",
+        verbose_name="ativo",
+    )
+    provider = models.CharField("fornecedor", max_length=150)
+    contract_number = models.CharField("contrato", max_length=100, blank=True)
+    start_date = models.DateField("início")
+    end_date = models.DateField("fim")
+    coverage_notes = models.TextField("cobertura", blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="created_warranties",
+        null=True,
+        editable=False,
+        verbose_name="criado por",
+    )
+
+    class Meta:
+        ordering = ("-end_date",)
+        verbose_name = "garantia"
+        verbose_name_plural = "garantias"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(end_date__gte=models.F("start_date")),
+                name="inventory_warranty_end_on_or_after_start",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.asset.asset_tag} - {self.provider}"
+
+    @property
+    def is_active(self):
+        today = timezone.localdate()
+        return self.start_date <= today <= self.end_date
+
+
+class AssetCost(TimeStampedModel):
+    class Type(models.TextChoices):
+        PURCHASE = "PURCHASE", "Compra"
+        MAINTENANCE = "MAINTENANCE", "Manutenção"
+        LICENSE = "LICENSE", "Licença"
+        OTHER = "OTHER", "Outro"
+
+    asset = models.ForeignKey(
+        Asset,
+        on_delete=models.PROTECT,
+        related_name="costs",
+        verbose_name="ativo",
+    )
+    maintenance = models.ForeignKey(
+        Maintenance,
+        on_delete=models.PROTECT,
+        related_name="cost_entries",
+        null=True,
+        blank=True,
+        verbose_name="manutenção",
+    )
+    cost_type = models.CharField("tipo", max_length=20, choices=Type.choices)
+    amount = models.DecimalField(
+        "valor",
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    occurred_on = models.DateField("data", default=timezone.localdate)
+    description = models.TextField("descrição")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="created_asset_costs",
+        null=True,
+        editable=False,
+        verbose_name="criado por",
+    )
+
+    class Meta:
+        ordering = ("-occurred_on", "-created_at")
+        verbose_name = "custo do ativo"
+        verbose_name_plural = "custos dos ativos"
+
+    def __str__(self):
+        return f"{self.asset.asset_tag} - {self.amount}"
+
+
+class AssetAttachment(TimeStampedModel):
+    asset = models.ForeignKey(
+        Asset,
+        on_delete=models.PROTECT,
+        related_name="attachments",
+        verbose_name="ativo",
+    )
+    maintenance = models.ForeignKey(
+        Maintenance,
+        on_delete=models.PROTECT,
+        related_name="attachments",
+        null=True,
+        blank=True,
+        verbose_name="manutenção",
+    )
+    file = models.FileField(
+        "arquivo",
+        upload_to=asset_attachment_path,
+        validators=[
+            FileExtensionValidator(("pdf", "png", "jpg", "jpeg", "webp")),
+            validate_attachment_size,
+        ],
+    )
+    description = models.CharField("descrição", max_length=255, blank=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="uploaded_asset_attachments",
+        null=True,
+        editable=False,
+        verbose_name="enviado por",
+    )
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "anexo do ativo"
+        verbose_name_plural = "anexos dos ativos"
+
+    def __str__(self):
+        return f"{self.asset.asset_tag} - {self.file.name}"
+
+
 class AssetMovement(TimeStampedModel):
     class Type(models.TextChoices):
         LOAN = "LOAN", "Empréstimo"
         RETURN = "RETURN", "Devolução"
         TRANSFER = "TRANSFER", "Transferência"
         ASSIGNMENT = "ASSIGNMENT", "Atribuição"
+        MAINTENANCE_START = "MAINTENANCE_START", "Início de manutenção"
+        MAINTENANCE_END = "MAINTENANCE_END", "Fim de manutenção"
 
     asset = models.ForeignKey(
         Asset,
@@ -262,6 +474,14 @@ class AssetMovement(TimeStampedModel):
         null=True,
         blank=True,
         verbose_name="empréstimo",
+    )
+    maintenance = models.ForeignKey(
+        Maintenance,
+        on_delete=models.PROTECT,
+        related_name="movements",
+        null=True,
+        blank=True,
+        verbose_name="manutenção",
     )
     performed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

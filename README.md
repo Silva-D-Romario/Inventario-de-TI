@@ -17,6 +17,8 @@ Demonstrar desenvolvimento backend com Django, regras de negócio, autenticaçã
 - Proteção contra exclusão de cadastros vinculados a ativos.
 - Gestão de responsáveis, empréstimos, devoluções e transferências.
 - Histórico imutável de movimentações com usuário executor.
+- Manutenções transacionais com custos e restauração automática do status do ativo.
+- Gestão de garantias, custos e documentos com download autenticado.
 - Health check e documentação OpenAPI/Swagger.
 
 ## Stack planejada
@@ -170,6 +172,41 @@ curl -X POST http://localhost:18000/api/v1/inventory/loans/ \
 
 O empréstimo move o ativo para o setor do responsável e altera seu status para `Em uso`. A devolução restaura o setor de origem e o status `Disponível`. Essas operações usam transações e bloqueio de linha no banco para impedir empréstimos simultâneos do mesmo ativo.
 
+## Manutenções, garantias, custos e anexos
+
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| `GET/POST` | `/api/v1/inventory/maintenances/` | Consultar e iniciar manutenções |
+| `POST` | `/api/v1/inventory/maintenances/{id}/complete/` | Concluir e registrar o custo |
+| `POST` | `/api/v1/inventory/maintenances/{id}/cancel/` | Cancelar uma manutenção |
+| `GET/POST` | `/api/v1/inventory/warranties/` | Gerenciar garantias |
+| `GET/POST` | `/api/v1/inventory/costs/` | Gerenciar custos dos ativos |
+| `GET/POST` | `/api/v1/inventory/attachments/` | Listar e enviar documentos |
+| `GET` | `/api/v1/inventory/attachments/{id}/download/` | Baixar um documento autenticado |
+
+Exemplo de início e conclusão de manutenção:
+
+```bash
+curl -X POST http://localhost:18000/api/v1/inventory/maintenances/ \
+  -H "Authorization: Bearer SEU_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "asset": 1,
+    "maintenance_type": "CORRECTIVE",
+    "description": "Substituição da fonte",
+    "provider": "Assistência Técnica"
+  }'
+
+curl -X POST http://localhost:18000/api/v1/inventory/maintenances/1/complete/ \
+  -H "Authorization: Bearer SEU_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"resolution_notes":"Fonte substituída","cost":"480.50"}'
+```
+
+Ao iniciar uma manutenção, o ativo muda para `Em manutenção`. Somente uma manutenção pode ficar aberta por ativo. Na conclusão ou no cancelamento, o status volta para `Disponível` ou `Em uso`, conforme a atribuição atual. O custo da conclusão é registrado automaticamente no histórico financeiro.
+
+Anexos aceitam PDF, PNG, JPG, JPEG e WebP com até 10 MB. Os arquivos ficam em volume persistente no Docker e são entregues somente pela rota autenticada de download. Para produção distribuída, substitua o armazenamento local por um serviço de objetos compatível com S3.
+
 Para encerrar:
 
 ```bash
@@ -201,7 +238,7 @@ python manage.py check
 2. ✅ Autenticação JWT e perfis de acesso.
 3. ✅ Cadastro de ativos, categorias, setores e status.
 4. ✅ Empréstimos, responsáveis e movimentações.
-5. Manutenções, garantias, custos e anexos.
+5. ✅ Manutenções, garantias, custos e anexos.
 6. QR Code e auditoria.
 7. Dashboard e relatórios.
 8. Alertas assíncronos.
