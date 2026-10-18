@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "django_filters",
     "apps.accounts",
     "apps.core",
+    "apps.inventory",
 ]
 
 MIDDLEWARE = [
@@ -107,7 +108,7 @@ REST_FRAMEWORK = {
 SPECTACULAR_SETTINGS = {
     "TITLE": "Inventário de TI API",
     "DESCRIPTION": "API para gestão de ativos, responsáveis e manutenções.",
-    "VERSION": "0.2.0",
+    "VERSION": "0.3.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
 
