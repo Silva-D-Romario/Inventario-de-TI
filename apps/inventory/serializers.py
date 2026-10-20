@@ -10,6 +10,7 @@ from apps.inventory.models import (
     AssetCost,
     AssetMovement,
     AssetStatus,
+    AuditLog,
     Category,
     Loan,
     Maintenance,
@@ -73,11 +74,13 @@ class AssetSerializer(serializers.ModelSerializer):
     status_color = serializers.CharField(source="status.color", read_only=True)
     created_by_username = serializers.CharField(source="created_by.username", read_only=True)
     responsible_name = serializers.CharField(source="responsible.name", read_only=True)
+    qr_code_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Asset
         fields = (
             "id",
+            "public_id",
             "asset_tag",
             "name",
             "category",
@@ -89,6 +92,7 @@ class AssetSerializer(serializers.ModelSerializer):
             "status_color",
             "responsible",
             "responsible_name",
+            "qr_code_url",
             "serial_number",
             "manufacturer",
             "model",
@@ -101,12 +105,19 @@ class AssetSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "id",
+            "public_id",
             "responsible",
             "responsible_name",
+            "qr_code_url",
             "created_by_username",
             "created_at",
             "updated_at",
         )
+
+    def get_qr_code_url(self, instance) -> str:
+        request = self.context.get("request")
+        path = reverse("asset-qr-code", kwargs={"pk": instance.pk})
+        return request.build_absolute_uri(path) if request else path
 
     def validate_asset_tag(self, value):
         normalized = value.strip().upper()
@@ -477,6 +488,32 @@ class AssetMovementSerializer(serializers.ModelSerializer):
             "maintenance",
             "performed_by_username",
             "notes",
+            "created_at",
+        )
+        read_only_fields = fields
+
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    action_display = serializers.CharField(source="get_action_display", read_only=True)
+    actor_username = serializers.CharField(source="actor.username", read_only=True)
+
+    class Meta:
+        model = AuditLog
+        fields = (
+            "id",
+            "actor",
+            "actor_username",
+            "action",
+            "action_display",
+            "resource_type",
+            "object_id",
+            "object_repr",
+            "changes",
+            "ip_address",
+            "user_agent",
+            "path",
+            "method",
+            "request_id",
             "created_at",
         )
         read_only_fields = fields

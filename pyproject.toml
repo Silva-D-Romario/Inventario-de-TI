@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "inventario-ti"
-version = "0.5.0"
+version = "0.6.0"
 description = "Sistema de inventario e gestao de ativos de TI"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -17,6 +17,7 @@ dependencies = [
   "drf-spectacular>=0.28,<0.29",
   "gunicorn>=23,<24",
   "psycopg[binary]>=3.2,<4",
+  "qrcode[pil]>=8.2,<9",
 ]
 
 [project.optional-dependencies]

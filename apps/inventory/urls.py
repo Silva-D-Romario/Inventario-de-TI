@@ -8,6 +8,7 @@ from apps.inventory.views import (
     AssetStatusViewSet,
     AssetTransferView,
     AssetViewSet,
+    AuditLogViewSet,
     CategoryViewSet,
     LoanViewSet,
     MaintenanceViewSet,
@@ -28,6 +29,7 @@ router.register("warranties", WarrantyViewSet, basename="warranty")
 router.register("costs", AssetCostViewSet, basename="asset-cost")
 router.register("attachments", AssetAttachmentViewSet, basename="asset-attachment")
 router.register("movements", AssetMovementViewSet, basename="asset-movement")
+router.register("audit-logs", AuditLogViewSet, basename="audit-log")
 
 urlpatterns = [
     path("assets/<int:pk>/transfer/", AssetTransferView.as_view(), name="asset-transfer"),
