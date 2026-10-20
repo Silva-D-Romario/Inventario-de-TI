@@ -18,6 +18,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.accounts.permissions import IsAdministrator
+from apps.inventory.analytics import build_inventory_dashboard
+from apps.inventory.analytics_serializers import InventoryDashboardSerializer
 from apps.inventory.audit import AuditTrailMixin, record_audit
 from apps.inventory.models import (
     Asset,
@@ -414,3 +416,13 @@ class AssetTransferView(GenericAPIView):
             },
         )
         return Response(AssetSerializer(updated_asset).data)
+
+
+class InventoryDashboardView(GenericAPIView):
+    serializer_class = InventoryDashboardSerializer
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["Dashboard"], responses=InventoryDashboardSerializer)
+    def get(self, request):
+        serializer = self.get_serializer(build_inventory_dashboard())
+        return Response(serializer.data)

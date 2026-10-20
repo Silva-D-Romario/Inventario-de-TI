@@ -10,6 +10,7 @@ from apps.inventory.views import (
     AssetViewSet,
     AuditLogViewSet,
     CategoryViewSet,
+    InventoryDashboardView,
     LoanViewSet,
     MaintenanceViewSet,
     ResponsiblePersonViewSet,
@@ -32,6 +33,7 @@ router.register("movements", AssetMovementViewSet, basename="asset-movement")
 router.register("audit-logs", AuditLogViewSet, basename="audit-log")
 
 urlpatterns = [
+    path("dashboard/", InventoryDashboardView.as_view(), name="inventory-dashboard"),
     path("assets/<int:pk>/transfer/", AssetTransferView.as_view(), name="asset-transfer"),
     *router.urls,
 ]
