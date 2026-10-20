@@ -6,9 +6,10 @@ import qrcode
 from django.db.models import ProtectedError
 from django.http import FileResponse, HttpResponse
 from django.urls import reverse
+from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from qrcode.constants import ERROR_CORRECT_M
 from rest_framework import filters, mixins, status, viewsets
 from rest_framework.decorators import action
@@ -17,7 +18,7 @@ from rest_framework.generics import GenericAPIView, get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.accounts.permissions import IsAdministrator
+from apps.accounts.permissions import IsAdministrator, IsTechnicianOrAdministrator
 from apps.inventory.analytics import build_inventory_dashboard
 from apps.inventory.analytics_serializers import InventoryDashboardSerializer
 from apps.inventory.audit import AuditTrailMixin, record_audit
@@ -39,6 +40,15 @@ from apps.inventory.permissions import (
     AssetPermission,
     MasterDataPermission,
     OperationalPermission,
+)
+from apps.inventory.reporting import (
+    AssetReportFilterSerializer,
+    CostReportFilterSerializer,
+    MaintenanceReportFilterSerializer,
+    filter_assets,
+    filter_costs,
+    filter_maintenances,
+    render_csv,
 )
 from apps.inventory.serializers import (
     AssetAttachmentSerializer,
@@ -426,3 +436,136 @@ class InventoryDashboardView(GenericAPIView):
     def get(self, request):
         serializer = self.get_serializer(build_inventory_dashboard())
         return Response(serializer.data)
+
+
+class BaseCsvReportView(GenericAPIView):
+    permission_classes = [IsTechnicianOrAdministrator]
+    report_slug = "report"
+    report_title = "Relatório"
+    headers = ()
+
+    def get_rows(self, filters):
+        raise NotImplementedError
+
+    def get(self, request):
+        serializer = self.get_serializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        filters = serializer.validated_data
+        rows = list(self.get_rows(filters))
+        response = HttpResponse(
+            render_csv(self.headers, rows),
+            content_type="text/csv; charset=utf-8",
+        )
+        response["Content-Disposition"] = (
+            f'attachment; filename="{self.report_slug}-{timezone.localdate().isoformat()}.csv"'
+        )
+        record_audit(
+            request=request,
+            action=AuditLog.Action.ACTION,
+            resource_type="inventory.report",
+            object_id=self.report_slug,
+            object_repr=self.report_title,
+            changes={"event": "REPORT_EXPORT", "filters": filters, "row_count": len(rows)},
+        )
+        return response
+
+
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Relatórios"],
+        parameters=[AssetReportFilterSerializer],
+        responses={(200, "text/csv"): OpenApiResponse(response=OpenApiTypes.BINARY)},
+    )
+)
+class AssetCsvReportView(BaseCsvReportView):
+    serializer_class = AssetReportFilterSerializer
+    report_slug = "ativos"
+    report_title = "Relatório de ativos"
+    headers = (
+        "Patrimônio",
+        "Nome",
+        "Categoria",
+        "Setor",
+        "Status",
+        "Responsável",
+        "Número de série",
+        "Data de aquisição",
+        "Valor de compra",
+    )
+
+    def get_rows(self, filters):
+        for asset in filter_assets(filters):
+            yield (
+                asset.asset_tag,
+                asset.name,
+                asset.category.name,
+                asset.sector.name,
+                asset.status.name,
+                asset.responsible.name if asset.responsible else "",
+                asset.serial_number or "",
+                asset.acquisition_date or "",
+                asset.purchase_value if asset.purchase_value is not None else "",
+            )
+
+
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Relatórios"],
+        parameters=[CostReportFilterSerializer],
+        responses={(200, "text/csv"): OpenApiResponse(response=OpenApiTypes.BINARY)},
+    )
+)
+class CostCsvReportView(BaseCsvReportView):
+    serializer_class = CostReportFilterSerializer
+    report_slug = "custos"
+    report_title = "Relatório de custos"
+    headers = ("Data", "Patrimônio", "Ativo", "Tipo", "Valor", "Descrição")
+
+    def get_rows(self, filters):
+        for cost in filter_costs(filters):
+            yield (
+                cost.occurred_on,
+                cost.asset.asset_tag,
+                cost.asset.name,
+                cost.get_cost_type_display(),
+                cost.amount,
+                cost.description,
+            )
+
+
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Relatórios"],
+        parameters=[MaintenanceReportFilterSerializer],
+        responses={(200, "text/csv"): OpenApiResponse(response=OpenApiTypes.BINARY)},
+    )
+)
+class MaintenanceCsvReportView(BaseCsvReportView):
+    serializer_class = MaintenanceReportFilterSerializer
+    report_slug = "manutencoes"
+    report_title = "Relatório de manutenções"
+    headers = (
+        "Patrimônio",
+        "Ativo",
+        "Tipo",
+        "Status",
+        "Início",
+        "Conclusão",
+        "Prestador",
+        "Custo",
+        "Descrição",
+    )
+
+    def get_rows(self, filters):
+        for maintenance in filter_maintenances(filters):
+            yield (
+                maintenance.asset.asset_tag,
+                maintenance.asset.name,
+                maintenance.get_maintenance_type_display(),
+                maintenance.get_status_display(),
+                maintenance.started_at,
+                maintenance.completed_at or "",
+                maintenance.provider,
+                maintenance.cost,
+                maintenance.description,
+            )
