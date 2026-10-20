@@ -19,6 +19,8 @@ Demonstrar desenvolvimento backend com Django, regras de negócio, autenticaçã
 - Histórico imutável de movimentações com usuário executor.
 - Manutenções transacionais com custos e restauração automática do status do ativo.
 - Gestão de garantias, custos e documentos com download autenticado.
+- Identificação dos ativos por QR Code e UUID público.
+- Trilha de auditoria imutável para alterações e ações operacionais.
 - Health check e documentação OpenAPI/Swagger.
 
 ## Stack planejada
@@ -207,6 +209,36 @@ Ao iniciar uma manutenção, o ativo muda para `Em manutenção`. Somente uma ma
 
 Anexos aceitam PDF, PNG, JPG, JPEG e WebP com até 10 MB. Os arquivos ficam em volume persistente no Docker e são entregues somente pela rota autenticada de download. Para produção distribuída, substitua o armazenamento local por um serviço de objetos compatível com S3.
 
+## QR Code e auditoria
+
+Cada ativo recebe um UUID público aleatório. O QR Code contém somente a URL de consulta desse identificador; dados patrimoniais e técnicos continuam protegidos pela autenticação JWT.
+
+| Método | Endpoint | Acesso | Descrição |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/inventory/assets/{id}/qr-code/` | Autenticado | Gerar a etiqueta QR em PNG |
+| `GET` | `/api/v1/inventory/assets/scan/{public_id}/` | Autenticado | Consultar o ativo ao ler o QR |
+| `GET` | `/api/v1/inventory/audit-logs/` | Administrador | Consultar a auditoria imutável |
+
+Baixar a etiqueta:
+
+```bash
+curl http://localhost:18000/api/v1/inventory/assets/1/qr-code/ \
+  -H "Authorization: Bearer SEU_ACCESS_TOKEN" \
+  --output ativo-1-qrcode.png
+```
+
+A auditoria registra usuário, ação, recurso, campos alterados, IP, agente do cliente, rota, método e identificador da requisição. Criações, atualizações, exclusões, transferências, devoluções, encerramentos de manutenção e leituras de QR são rastreadas. Os registros não podem ser criados, editados ou excluídos pela API.
+
+Filtros de auditoria disponíveis:
+
+```text
+?actor=1
+?action=UPDATE
+?resource_type=inventory.asset
+?object_id=15
+?created_at__gte=2026-10-01&created_at__lte=2026-10-31
+```
+
 Para encerrar:
 
 ```bash
@@ -239,7 +271,7 @@ python manage.py check
 3. ✅ Cadastro de ativos, categorias, setores e status.
 4. ✅ Empréstimos, responsáveis e movimentações.
 5. ✅ Manutenções, garantias, custos e anexos.
-6. QR Code e auditoria.
+6. ✅ QR Code e auditoria.
 7. Dashboard e relatórios.
 8. Alertas assíncronos.
 9. Segurança, documentação e deploy.
