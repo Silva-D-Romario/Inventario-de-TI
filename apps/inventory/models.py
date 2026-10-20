@@ -1,3 +1,4 @@
+import uuid
 from decimal import Decimal
 
 from django.conf import settings
@@ -117,6 +118,12 @@ class ResponsiblePerson(TimeStampedModel):
 
 
 class Asset(TimeStampedModel):
+    public_id = models.UUIDField(
+        "identificador público",
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+    )
     asset_tag = models.CharField("patrimônio", max_length=50, unique=True)
     name = models.CharField("nome", max_length=150)
     category = models.ForeignKey(
@@ -500,3 +507,47 @@ class AssetMovement(TimeStampedModel):
 
     def __str__(self):
         return f"{self.asset.asset_tag} - {self.get_movement_type_display()}"
+
+
+class AuditLog(models.Model):
+    class Action(models.TextChoices):
+        CREATE = "CREATE", "Criação"
+        UPDATE = "UPDATE", "Alteração"
+        DELETE = "DELETE", "Exclusão"
+        ACTION = "ACTION", "Ação operacional"
+        SCAN = "SCAN", "Leitura de QR Code"
+
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="inventory_audit_logs",
+        null=True,
+        editable=False,
+        verbose_name="usuário",
+    )
+    action = models.CharField("ação", max_length=10, choices=Action.choices)
+    resource_type = models.CharField("tipo de recurso", max_length=100)
+    object_id = models.CharField("identificador do objeto", max_length=64)
+    object_repr = models.CharField("descrição do objeto", max_length=255)
+    changes = models.JSONField("alterações", default=dict, blank=True)
+    ip_address = models.GenericIPAddressField("endereço IP", null=True, blank=True)
+    user_agent = models.TextField("agente do usuário", blank=True)
+    path = models.CharField("rota", max_length=255, blank=True)
+    method = models.CharField("método HTTP", max_length=10, blank=True)
+    request_id = models.UUIDField("identificador da requisição", default=uuid.uuid4)
+    created_at = models.DateTimeField("criado em", auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "registro de auditoria"
+        verbose_name_plural = "registros de auditoria"
+        indexes = [
+            models.Index(
+                fields=("resource_type", "object_id"),
+                name="inventory_audit_resource_idx",
+            ),
+            models.Index(fields=("actor", "created_at"), name="inventory_audit_actor_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.get_action_display()} - {self.object_repr}"
