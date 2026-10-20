@@ -1,10 +1,15 @@
 from decimal import Decimal
+from io import BytesIO
 from pathlib import Path
 
+import qrcode
 from django.db.models import ProtectedError
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponse
+from django.urls import reverse
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, extend_schema_view
+from qrcode.constants import ERROR_CORRECT_M
 from rest_framework import filters, mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -119,6 +124,43 @@ class AssetViewSet(AuditTrailMixin, ProtectedDestroyMixin, viewsets.ModelViewSet
 
     def get_create_save_kwargs(self):
         return {"created_by": self.request.user}
+
+    @extend_schema(responses={(200, "image/png"): OpenApiTypes.BINARY})
+    @action(detail=True, methods=("get",), url_path="qr-code")
+    def qr_code(self, request, pk=None):
+        asset = self.get_object()
+        scan_url = request.build_absolute_uri(
+            reverse("asset-scan", kwargs={"public_id": asset.public_id})
+        )
+        qr = qrcode.QRCode(
+            error_correction=ERROR_CORRECT_M,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(scan_url)
+        qr.make(fit=True)
+        image = qr.make_image(fill_color="black", back_color="white")
+        output = BytesIO()
+        image.save(output, format="PNG")
+        response = HttpResponse(output.getvalue(), content_type="image/png")
+        response["Content-Disposition"] = f'inline; filename="ativo-{asset.asset_tag}-qrcode.png"'
+        response["Cache-Control"] = "private, max-age=3600"
+        return response
+
+    @action(
+        detail=False,
+        methods=("get",),
+        url_path=r"scan/(?P<public_id>[0-9a-fA-F-]{36})",
+    )
+    def scan(self, request, public_id=None):
+        asset = get_object_or_404(self.get_queryset(), public_id=public_id)
+        record_audit(
+            request=request,
+            action=AuditLog.Action.SCAN,
+            instance=asset,
+            changes={"event": "QR_SCAN"},
+        )
+        return Response(self.get_serializer(asset).data)
 
 
 @extend_schema_view(list=extend_schema(tags=["Responsáveis"]))

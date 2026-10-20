@@ -74,11 +74,13 @@ class AssetSerializer(serializers.ModelSerializer):
     status_color = serializers.CharField(source="status.color", read_only=True)
     created_by_username = serializers.CharField(source="created_by.username", read_only=True)
     responsible_name = serializers.CharField(source="responsible.name", read_only=True)
+    qr_code_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Asset
         fields = (
             "id",
+            "public_id",
             "asset_tag",
             "name",
             "category",
@@ -90,6 +92,7 @@ class AssetSerializer(serializers.ModelSerializer):
             "status_color",
             "responsible",
             "responsible_name",
+            "qr_code_url",
             "serial_number",
             "manufacturer",
             "model",
@@ -102,12 +105,19 @@ class AssetSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "id",
+            "public_id",
             "responsible",
             "responsible_name",
+            "qr_code_url",
             "created_by_username",
             "created_at",
             "updated_at",
         )
+
+    def get_qr_code_url(self, instance) -> str:
+        request = self.context.get("request")
+        path = reverse("asset-qr-code", kwargs={"pk": instance.pk})
+        return request.build_absolute_uri(path) if request else path
 
     def validate_asset_tag(self, value):
         normalized = value.strip().upper()
