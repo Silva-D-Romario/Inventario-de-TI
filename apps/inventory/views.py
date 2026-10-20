@@ -12,12 +12,15 @@ from rest_framework.generics import GenericAPIView, get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.accounts.permissions import IsAdministrator
+from apps.inventory.audit import AuditTrailMixin, record_audit
 from apps.inventory.models import (
     Asset,
     AssetAttachment,
     AssetCost,
     AssetMovement,
     AssetStatus,
+    AuditLog,
     Category,
     Loan,
     Maintenance,
@@ -36,6 +39,7 @@ from apps.inventory.serializers import (
     AssetMovementSerializer,
     AssetSerializer,
     AssetStatusSerializer,
+    AuditLogSerializer,
     CategorySerializer,
     FinishMaintenanceSerializer,
     LoanSerializer,
@@ -66,7 +70,7 @@ class ProtectedDestroyMixin:
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class ReferenceViewSet(ProtectedDestroyMixin, viewsets.ModelViewSet):
+class ReferenceViewSet(AuditTrailMixin, ProtectedDestroyMixin, viewsets.ModelViewSet):
     permission_classes = [MasterDataPermission]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ("is_active",)
@@ -96,7 +100,7 @@ class AssetStatusViewSet(ReferenceViewSet):
 
 
 @extend_schema_view(list=extend_schema(tags=["Ativos"]))
-class AssetViewSet(ProtectedDestroyMixin, viewsets.ModelViewSet):
+class AssetViewSet(AuditTrailMixin, ProtectedDestroyMixin, viewsets.ModelViewSet):
     queryset = Asset.objects.select_related(
         "category", "sector", "status", "responsible", "created_by"
     )
@@ -113,12 +117,12 @@ class AssetViewSet(ProtectedDestroyMixin, viewsets.ModelViewSet):
     ordering_fields = ("asset_tag", "name", "acquisition_date", "purchase_value", "updated_at")
     ordering = ("asset_tag",)
 
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+    def get_create_save_kwargs(self):
+        return {"created_by": self.request.user}
 
 
 @extend_schema_view(list=extend_schema(tags=["Responsáveis"]))
-class ResponsiblePersonViewSet(ProtectedDestroyMixin, viewsets.ModelViewSet):
+class ResponsiblePersonViewSet(AuditTrailMixin, ProtectedDestroyMixin, viewsets.ModelViewSet):
     queryset = ResponsiblePerson.objects.select_related("sector")
     serializer_class = ResponsiblePersonSerializer
     permission_classes = [OperationalPermission]
@@ -131,6 +135,7 @@ class ResponsiblePersonViewSet(ProtectedDestroyMixin, viewsets.ModelViewSet):
 
 @extend_schema_view(list=extend_schema(tags=["Empréstimos"]))
 class LoanViewSet(
+    AuditTrailMixin,
     mixins.CreateModelMixin,
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
@@ -163,11 +168,22 @@ class LoanViewSet(
             )
         except InventoryOperationError as error:
             raise ValidationError({"detail": str(error)}) from error
+        record_audit(
+            request=request,
+            action=AuditLog.Action.ACTION,
+            instance=returned_loan,
+            changes={
+                "event": "RETURN",
+                "asset": returned_loan.asset_id,
+                "notes": serializer.validated_data["notes"],
+            },
+        )
         return Response(LoanSerializer(returned_loan).data)
 
 
 @extend_schema_view(list=extend_schema(tags=["Manutenções"]))
 class MaintenanceViewSet(
+    AuditTrailMixin,
     mixins.CreateModelMixin,
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
@@ -204,6 +220,16 @@ class MaintenanceViewSet(
             )
         except InventoryOperationError as error:
             raise ValidationError({"detail": str(error)}) from error
+        record_audit(
+            request=request,
+            action=AuditLog.Action.ACTION,
+            instance=finished,
+            changes={
+                "event": final_status,
+                "cost": cost,
+                "resolution_notes": serializer.validated_data["resolution_notes"],
+            },
+        )
         return Response(self.get_serializer(finished).data)
 
     @action(detail=True, methods=("post",))
@@ -216,7 +242,7 @@ class MaintenanceViewSet(
 
 
 @extend_schema_view(list=extend_schema(tags=["Garantias"]))
-class WarrantyViewSet(ProtectedDestroyMixin, viewsets.ModelViewSet):
+class WarrantyViewSet(AuditTrailMixin, ProtectedDestroyMixin, viewsets.ModelViewSet):
     queryset = Warranty.objects.select_related("asset", "created_by")
     serializer_class = WarrantySerializer
     permission_classes = [OperationalPermission]
@@ -230,12 +256,12 @@ class WarrantyViewSet(ProtectedDestroyMixin, viewsets.ModelViewSet):
     ordering_fields = ("start_date", "end_date", "created_at", "updated_at")
     ordering = ("-end_date",)
 
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+    def get_create_save_kwargs(self):
+        return {"created_by": self.request.user}
 
 
 @extend_schema_view(list=extend_schema(tags=["Custos"]))
-class AssetCostViewSet(ProtectedDestroyMixin, viewsets.ModelViewSet):
+class AssetCostViewSet(AuditTrailMixin, ProtectedDestroyMixin, viewsets.ModelViewSet):
     queryset = AssetCost.objects.select_related("asset", "maintenance", "created_by")
     serializer_class = AssetCostSerializer
     permission_classes = [OperationalPermission]
@@ -250,12 +276,13 @@ class AssetCostViewSet(ProtectedDestroyMixin, viewsets.ModelViewSet):
     ordering_fields = ("occurred_on", "amount", "created_at", "updated_at")
     ordering = ("-occurred_on", "-created_at")
 
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+    def get_create_save_kwargs(self):
+        return {"created_by": self.request.user}
 
 
 @extend_schema_view(list=extend_schema(tags=["Anexos"]))
 class AssetAttachmentViewSet(
+    AuditTrailMixin,
     mixins.CreateModelMixin,
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
@@ -271,8 +298,8 @@ class AssetAttachmentViewSet(
     ordering_fields = ("created_at",)
     ordering = ("-created_at",)
 
-    def perform_create(self, serializer):
-        serializer.save(uploaded_by=self.request.user)
+    def get_create_save_kwargs(self):
+        return {"uploaded_by": self.request.user}
 
     @action(detail=True, methods=("get",))
     def download(self, request, pk=None):
@@ -304,6 +331,24 @@ class AssetMovementViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = ("-created_at",)
 
 
+@extend_schema_view(list=extend_schema(tags=["Auditoria"]))
+class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = AuditLog.objects.select_related("actor")
+    serializer_class = AuditLogSerializer
+    permission_classes = [IsAdministrator]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = {
+        "actor": ["exact"],
+        "action": ["exact"],
+        "resource_type": ["exact"],
+        "object_id": ["exact"],
+        "created_at": ["date", "gte", "lte"],
+    }
+    search_fields = ("actor__username", "object_repr", "path")
+    ordering_fields = ("created_at",)
+    ordering = ("-created_at",)
+
+
 class AssetTransferView(GenericAPIView):
     serializer_class = TransferAssetSerializer
     permission_classes = [AssetPermission]
@@ -315,4 +360,15 @@ class AssetTransferView(GenericAPIView):
         )
         serializer.is_valid(raise_exception=True)
         updated_asset, _movement = serializer.save()
+        record_audit(
+            request=request,
+            action=AuditLog.Action.ACTION,
+            instance=updated_asset,
+            changes={
+                "event": "TRANSFER",
+                "to_sector": updated_asset.sector_id,
+                "responsible": updated_asset.responsible_id,
+                "notes": serializer.validated_data["notes"],
+            },
+        )
         return Response(AssetSerializer(updated_asset).data)

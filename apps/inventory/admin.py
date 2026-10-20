@@ -6,6 +6,7 @@ from apps.inventory.models import (
     AssetCost,
     AssetMovement,
     AssetStatus,
+    AuditLog,
     Category,
     Loan,
     Maintenance,
@@ -48,8 +49,8 @@ class AssetAdmin(admin.ModelAdmin):
         "updated_at",
     )
     list_filter = ("category", "sector", "status")
-    search_fields = ("asset_tag", "name", "serial_number", "manufacturer", "model")
-    readonly_fields = ("created_by", "created_at", "updated_at")
+    search_fields = ("asset_tag", "public_id", "name", "serial_number", "manufacturer", "model")
+    readonly_fields = ("public_id", "created_by", "created_at", "updated_at")
 
     def save_model(self, request, obj, form, change):
         if not obj.created_by_id:
@@ -140,3 +141,33 @@ class AssetAttachmentAdmin(admin.ModelAdmin):
     list_display = ("asset", "description", "maintenance", "uploaded_by", "created_at")
     search_fields = ("asset__asset_tag", "asset__name", "description")
     readonly_fields = ("uploaded_by", "created_at", "updated_at")
+
+
+@admin.register(AuditLog)
+class AuditLogAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "actor", "action", "resource_type", "object_repr")
+    list_filter = ("action", "resource_type", "created_at")
+    search_fields = ("actor__username", "object_id", "object_repr", "path")
+    readonly_fields = (
+        "actor",
+        "action",
+        "resource_type",
+        "object_id",
+        "object_repr",
+        "changes",
+        "ip_address",
+        "user_agent",
+        "path",
+        "method",
+        "request_id",
+        "created_at",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

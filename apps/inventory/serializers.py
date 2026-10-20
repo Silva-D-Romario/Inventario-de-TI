@@ -10,6 +10,7 @@ from apps.inventory.models import (
     AssetCost,
     AssetMovement,
     AssetStatus,
+    AuditLog,
     Category,
     Loan,
     Maintenance,
@@ -477,6 +478,32 @@ class AssetMovementSerializer(serializers.ModelSerializer):
             "maintenance",
             "performed_by_username",
             "notes",
+            "created_at",
+        )
+        read_only_fields = fields
+
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    action_display = serializers.CharField(source="get_action_display", read_only=True)
+    actor_username = serializers.CharField(source="actor.username", read_only=True)
+
+    class Meta:
+        model = AuditLog
+        fields = (
+            "id",
+            "actor",
+            "actor_username",
+            "action",
+            "action_display",
+            "resource_type",
+            "object_id",
+            "object_repr",
+            "changes",
+            "ip_address",
+            "user_agent",
+            "path",
+            "method",
+            "request_id",
             "created_at",
         )
         read_only_fields = fields
