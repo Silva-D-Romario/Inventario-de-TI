@@ -21,6 +21,8 @@ Demonstrar desenvolvimento backend com Django, regras de negócio, autenticaçã
 - Gestão de garantias, custos e documentos com download autenticado.
 - Identificação dos ativos por QR Code e UUID público.
 - Trilha de auditoria imutável para alterações e ações operacionais.
+- Dashboard com indicadores, distribuições e séries prontas para gráficos.
+- Relatórios CSV filtráveis de ativos, custos e manutenções.
 - Health check e documentação OpenAPI/Swagger.
 
 ## Stack planejada
@@ -239,6 +241,30 @@ Filtros de auditoria disponíveis:
 ?created_at__gte=2026-10-01&created_at__lte=2026-10-31
 ```
 
+## Dashboard e relatórios
+
+O dashboard consolida os principais indicadores sem exigir processamento no cliente:
+
+| Método | Endpoint | Acesso | Conteúdo |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/inventory/dashboard/` | Autenticado | Indicadores, distribuições, custos mensais e últimas movimentações |
+| `GET` | `/api/v1/inventory/reports/assets.csv` | Técnico ou administrador | Inventário patrimonial filtrável |
+| `GET` | `/api/v1/inventory/reports/costs.csv` | Técnico ou administrador | Histórico financeiro filtrável |
+| `GET` | `/api/v1/inventory/reports/maintenances.csv` | Técnico ou administrador | Histórico de manutenções filtrável |
+
+Exemplos:
+
+```bash
+curl http://localhost:18000/api/v1/inventory/dashboard/ \
+  -H "Authorization: Bearer SEU_ACCESS_TOKEN"
+
+curl "http://localhost:18000/api/v1/inventory/reports/assets.csv?sector=1&acquisition_from=2026-01-01" \
+  -H "Authorization: Bearer SEU_ACCESS_TOKEN" \
+  --output ativos.csv
+```
+
+Os relatórios aceitam filtros por período e atributos do recurso, usam codificação UTF-8 compatível com planilhas e registram cada exportação na auditoria. A documentação completa dos parâmetros está no Swagger.
+
 Para encerrar:
 
 ```bash
@@ -272,7 +298,7 @@ python manage.py check
 4. ✅ Empréstimos, responsáveis e movimentações.
 5. ✅ Manutenções, garantias, custos e anexos.
 6. ✅ QR Code e auditoria.
-7. Dashboard e relatórios.
+7. ✅ Dashboard e relatórios.
 8. Alertas assíncronos.
 9. Segurança, documentação e deploy.
 
