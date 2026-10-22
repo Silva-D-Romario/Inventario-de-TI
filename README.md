@@ -2,6 +2,10 @@
 
 Sistema para controlar ativos de tecnologia, responsáveis, empréstimos, movimentações e manutenções.
 
+[![Qualidade Python](https://github.com/Silva-D-Romario/Inventario-de-TI/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Silva-D-Romario/Inventario-de-TI/actions/workflows/ci.yml)
+
+**Versão 1.0.0** — API pronta para execução local com Docker e preparação de deploy no Render.
+
 ## Objetivo
 
 Demonstrar desenvolvimento backend com Django, regras de negócio, autenticação, auditoria, tarefas assíncronas, testes e execução com Docker.
@@ -26,8 +30,9 @@ Demonstrar desenvolvimento backend com Django, regras de negócio, autenticaçã
 - Alertas assíncronos e deduplicados para empréstimos vencidos e garantias.
 - Notificações isoladas por usuário com controle de leitura.
 - Health check e documentação OpenAPI/Swagger.
+- Proteções de produção, throttling, validação de conteúdo e auditoria de dependências.
 
-## Stack planejada
+## Stack
 
 - Python e Django
 - Django REST Framework
@@ -51,6 +56,12 @@ flowchart LR
 ```
 
 O Compose executa a API, PostgreSQL, Redis, Celery Worker e Celery Beat. O Beat agenda a verificação diária, o Redis entrega a tarefa e o Worker cria notificações persistentes e envia os e-mails configurados.
+
+## Deploy
+
+O repositório inclui um Blueprint do Render com API, PostgreSQL, Redis, Worker e agendamento diário. A ativação não é automática porque Worker e Cron Job geram cobrança. O passo a passo, limitações e variáveis necessárias estão em [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+A política e os controles aplicados estão em [SECURITY.md](SECURITY.md).
 
 ## Executar com Docker
 
@@ -112,6 +123,8 @@ O cadastro público sempre cria o perfil `USER`. Apenas um administrador pode pr
 ```bash
 docker compose exec web python manage.py createsuperuser
 ```
+
+Em hospedagem, o comando `bootstrap_admin` cria a primeira conta somente quando `APP_ADMIN_USERNAME`, `APP_ADMIN_EMAIL` e `APP_ADMIN_PASSWORD` são fornecidos. Ele nunca redefine a senha de uma conta existente.
 
 ## Inventário
 
@@ -214,7 +227,7 @@ curl -X POST http://localhost:18000/api/v1/inventory/maintenances/1/complete/ \
 
 Ao iniciar uma manutenção, o ativo muda para `Em manutenção`. Somente uma manutenção pode ficar aberta por ativo. Na conclusão ou no cancelamento, o status volta para `Disponível` ou `Em uso`, conforme a atribuição atual. O custo da conclusão é registrado automaticamente no histórico financeiro.
 
-Anexos aceitam PDF, PNG, JPG, JPEG e WebP com até 10 MB. Os arquivos ficam em volume persistente no Docker e são entregues somente pela rota autenticada de download. Para produção distribuída, substitua o armazenamento local por um serviço de objetos compatível com S3.
+Anexos aceitam PDF, PNG, JPG, JPEG e WebP com até 10 MB. A extensão e a assinatura do conteúdo são validadas. Os arquivos ficam em volume persistente no Docker e são entregues somente pela rota autenticada de download. Para produção distribuída, substitua o armazenamento local por um serviço de objetos compatível com S3.
 
 ## QR Code e auditoria
 
@@ -328,6 +341,11 @@ ruff format --check .
 ruff check .
 pytest
 python manage.py check
+DJANGO_DEBUG=false \
+DJANGO_SECRET_KEY=uma-chave-segura-com-mais-de-cinquenta-caracteres \
+DJANGO_ALLOWED_HOSTS=example.com \
+python manage.py check --deploy
+pip-audit --skip-editable
 ```
 
 ## Etapas
@@ -340,7 +358,7 @@ python manage.py check
 6. ✅ QR Code e auditoria.
 7. ✅ Dashboard e relatórios.
 8. ✅ Alertas assíncronos.
-9. Segurança, documentação e deploy.
+9. ✅ Segurança, documentação e preparação do deploy.
 
 ## Fluxo Git
 
