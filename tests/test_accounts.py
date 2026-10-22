@@ -1,4 +1,6 @@
 import pytest
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -32,6 +34,36 @@ def admin_user(db):
 
 def authenticate(client, user):
     client.force_authenticate(user=user)
+
+
+@pytest.mark.django_db
+def test_bootstrap_admin_creates_account_once(monkeypatch):
+    monkeypatch.setenv("APP_ADMIN_USERNAME", "bootstrap.admin")
+    monkeypatch.setenv("APP_ADMIN_EMAIL", "bootstrap@example.com")
+    monkeypatch.setenv("APP_ADMIN_PASSWORD", "SenhaSegura@2026")
+    monkeypatch.setenv("APP_ADMIN_NAME", "Romário Silva")
+
+    call_command("bootstrap_admin")
+    created = User.objects.get(username="bootstrap.admin")
+    assert created.email == "bootstrap@example.com"
+    assert created.first_name == "Romário"
+    assert created.last_name == "Silva"
+    assert created.role == User.Role.ADMIN
+    assert created.is_staff is True
+    assert created.is_superuser is True
+
+    monkeypatch.setenv("APP_ADMIN_PASSWORD", "OutraSenha@2026")
+    call_command("bootstrap_admin")
+    created.refresh_from_db()
+    assert created.check_password("SenhaSegura@2026")
+
+
+@pytest.mark.django_db
+def test_bootstrap_admin_rejects_partial_configuration(monkeypatch):
+    monkeypatch.setenv("APP_ADMIN_USERNAME", "bootstrap.admin")
+
+    with pytest.raises(CommandError):
+        call_command("bootstrap_admin")
 
 
 @pytest.mark.django_db

@@ -1,0 +1,161 @@
+services:
+  - type: keyvalue
+    name: inventario-ti-redis
+    plan: free
+    region: ohio
+    maxmemoryPolicy: noeviction
+    ipAllowList: []
+
+  - type: web
+    name: inventario-ti-api
+    runtime: docker
+    plan: free
+    region: ohio
+    branch: main
+    healthCheckPath: /api/v1/health/
+    envVars:
+      - fromGroup: inventario-ti-settings
+      - key: PORT
+        value: 8000
+      - key: APP_ADMIN_USERNAME
+        sync: false
+      - key: APP_ADMIN_EMAIL
+        sync: false
+      - key: APP_ADMIN_PASSWORD
+        sync: false
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: inventario-ti-db
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: inventario-ti-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: inventario-ti-db
+          property: password
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: inventario-ti-db
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: inventario-ti-db
+          property: port
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: keyvalue
+          name: inventario-ti-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: keyvalue
+          name: inventario-ti-redis
+          property: connectionString
+
+  - type: worker
+    name: inventario-ti-worker
+    runtime: docker
+    plan: 0.5c-512mb
+    region: ohio
+    branch: main
+    dockerCommand: celery -A config worker --loglevel=INFO --concurrency=2
+    envVars:
+      - fromGroup: inventario-ti-settings
+      - key: RUN_STARTUP_TASKS
+        value: "false"
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: inventario-ti-db
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: inventario-ti-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: inventario-ti-db
+          property: password
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: inventario-ti-db
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: inventario-ti-db
+          property: port
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: keyvalue
+          name: inventario-ti-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: keyvalue
+          name: inventario-ti-redis
+          property: connectionString
+
+  - type: cron
+    name: inventario-ti-alertas
+    runtime: docker
+    plan: 0.5c-512mb
+    region: ohio
+    branch: main
+    schedule: "0 11 * * *"
+    dockerCommand: celery -A config call inventory.generate_alerts
+    envVars:
+      - fromGroup: inventario-ti-settings
+      - key: RUN_STARTUP_TASKS
+        value: "false"
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: inventario-ti-db
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: inventario-ti-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: inventario-ti-db
+          property: password
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: inventario-ti-db
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: inventario-ti-db
+          property: port
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: keyvalue
+          name: inventario-ti-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: keyvalue
+          name: inventario-ti-redis
+          property: connectionString
+
+databases:
+  - name: inventario-ti-db
+    plan: free
+    region: ohio
+    databaseName: inventario_ti
+    user: inventario_ti
+
+envVarGroups:
+  - name: inventario-ti-settings
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: localhost
+      - key: EMAIL_BACKEND
+        value: django.core.mail.backends.dummy.EmailBackend
+      - key: APP_ADMIN_NAME
+        value: Administrador
