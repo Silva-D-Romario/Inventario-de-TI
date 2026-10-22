@@ -34,6 +34,48 @@ services:
       retries: 5
       start_period: 15s
 
+  worker:
+    build: .
+    entrypoint: []
+    command: celery -A config worker --loglevel=INFO --concurrency=2
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-inventario_ti}
+      POSTGRES_USER: ${POSTGRES_USER:-inventario_ti}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-inventario_ti}
+      POSTGRES_HOST: database
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  beat:
+    build: .
+    entrypoint: []
+    command: celery -A config beat --loglevel=INFO --schedule=/tmp/celerybeat-schedule
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-inventario_ti}
+      POSTGRES_USER: ${POSTGRES_USER:-inventario_ti}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-inventario_ti}
+      POSTGRES_HOST: database
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   database:
     image: postgres:17-alpine
     environment:

@@ -16,6 +16,7 @@ from apps.inventory.views import (
     LoanViewSet,
     MaintenanceCsvReportView,
     MaintenanceViewSet,
+    NotificationViewSet,
     ResponsiblePersonViewSet,
     SectorViewSet,
     WarrantyViewSet,
@@ -34,6 +35,7 @@ router.register("costs", AssetCostViewSet, basename="asset-cost")
 router.register("attachments", AssetAttachmentViewSet, basename="asset-attachment")
 router.register("movements", AssetMovementViewSet, basename="asset-movement")
 router.register("audit-logs", AuditLogViewSet, basename="audit-log")
+router.register("notifications", NotificationViewSet, basename="notification")
 
 urlpatterns = [
     path("dashboard/", InventoryDashboardView.as_view(), name="inventory-dashboard"),

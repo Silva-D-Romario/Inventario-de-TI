@@ -551,3 +551,48 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.get_action_display()} - {self.object_repr}"
+
+
+class Notification(models.Model):
+    class Type(models.TextChoices):
+        OVERDUE_LOAN = "OVERDUE_LOAN", "Empréstimo vencido"
+        WARRANTY_EXPIRING = "WARRANTY_EXPIRING", "Garantia próxima do fim"
+
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="inventory_notifications",
+        verbose_name="destinatário",
+    )
+    alert_type = models.CharField("tipo", max_length=30, choices=Type.choices)
+    title = models.CharField("título", max_length=180)
+    message = models.TextField("mensagem")
+    resource_type = models.CharField("tipo de recurso", max_length=100)
+    resource_id = models.CharField("identificador do recurso", max_length=64)
+    dedup_key = models.CharField("chave de deduplicação", max_length=180)
+    read_at = models.DateTimeField("lida em", null=True, blank=True)
+    created_at = models.DateTimeField("criada em", auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "notificação"
+        verbose_name_plural = "notificações"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("recipient", "dedup_key"),
+                name="inv_notif_recip_dedup_uniq",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=("recipient", "read_at", "created_at"),
+                name="inventory_notif_read_idx",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.recipient} - {self.title}"
+
+    @property
+    def is_read(self):
+        return self.read_at is not None

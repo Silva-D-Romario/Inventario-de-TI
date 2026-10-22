@@ -23,6 +23,8 @@ Demonstrar desenvolvimento backend com Django, regras de negócio, autenticaçã
 - Trilha de auditoria imutável para alterações e ações operacionais.
 - Dashboard com indicadores, distribuições e séries prontas para gráficos.
 - Relatórios CSV filtráveis de ativos, custos e manutenções.
+- Alertas assíncronos e deduplicados para empréstimos vencidos e garantias.
+- Notificações isoladas por usuário com controle de leitura.
 - Health check e documentação OpenAPI/Swagger.
 
 ## Stack planejada
@@ -42,10 +44,13 @@ flowchart LR
     Cliente[Cliente HTTP] --> Django[Django + DRF]
     Django --> PostgreSQL[(PostgreSQL)]
     Django --> Redis[(Redis)]
-    Redis -. tarefas futuras .-> Celery[Celery Worker]
+    Beat[Celery Beat] --> Redis
+    Redis --> Worker[Celery Worker]
+    Worker --> PostgreSQL
+    Worker --> Email[E-mail]
 ```
 
-Nesta primeira etapa, o Compose executa somente os três componentes necessários: aplicação, PostgreSQL e Redis. O worker Celery será incluído quando os alertas assíncronos forem implementados.
+O Compose executa a API, PostgreSQL, Redis, Celery Worker e Celery Beat. O Beat agenda a verificação diária, o Redis entrega a tarefa e o Worker cria notificações persistentes e envia os e-mails configurados.
 
 ## Executar com Docker
 
@@ -265,6 +270,41 @@ curl "http://localhost:18000/api/v1/inventory/reports/assets.csv?sector=1&acquis
 
 Os relatórios aceitam filtros por período e atributos do recurso, usam codificação UTF-8 compatível com planilhas e registram cada exportação na auditoria. A documentação completa dos parâmetros está no Swagger.
 
+## Alertas assíncronos
+
+Todos os dias, o Celery procura empréstimos vencidos e garantias que terminarão dentro do período configurado. Técnicos e administradores ativos recebem uma notificação própria e um e-mail. A chave de deduplicação impede alertas repetidos para o mesmo evento.
+
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| `GET` | `/api/v1/inventory/notifications/` | Listar somente as notificações do usuário autenticado |
+| `GET` | `/api/v1/inventory/notifications/{id}/` | Consultar uma notificação própria |
+| `POST` | `/api/v1/inventory/notifications/{id}/mark-read/` | Marcar uma notificação como lida |
+| `POST` | `/api/v1/inventory/notifications/mark-all-read/` | Marcar todas as próprias notificações como lidas |
+
+Filtros disponíveis:
+
+```text
+?alert_type=OVERDUE_LOAN
+?alert_type=WARRANTY_EXPIRING
+?read_at__isnull=true
+?search=garantia
+```
+
+O horário e o período de garantia são definidos no `.env`:
+
+```env
+INVENTORY_ALERT_HOUR=8
+INVENTORY_ALERT_MINUTE=0
+INVENTORY_WARRANTY_ALERT_DAYS=30
+```
+
+O backend de e-mail padrão escreve as mensagens nos logs, adequado ao desenvolvimento. Em produção, configure o backend SMTP e as credenciais somente por variáveis de ambiente. Para disparar uma verificação de teste pela fila:
+
+```bash
+docker compose exec web python manage.py shell -c \
+  "from apps.inventory.tasks import generate_inventory_alerts; generate_inventory_alerts.delay()"
+```
+
 Para encerrar:
 
 ```bash
@@ -299,7 +339,7 @@ python manage.py check
 5. ✅ Manutenções, garantias, custos e anexos.
 6. ✅ QR Code e auditoria.
 7. ✅ Dashboard e relatórios.
-8. Alertas assíncronos.
+8. ✅ Alertas assíncronos.
 9. Segurança, documentação e deploy.
 
 ## Fluxo Git
