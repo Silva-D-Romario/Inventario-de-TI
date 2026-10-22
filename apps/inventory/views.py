@@ -32,9 +32,14 @@ from apps.inventory.models import (
     Category,
     Loan,
     Maintenance,
+    Notification,
     ResponsiblePerson,
     Sector,
     Warranty,
+)
+from apps.inventory.notification_serializers import (
+    MarkAllNotificationsReadSerializer,
+    NotificationSerializer,
 )
 from apps.inventory.permissions import (
     AssetPermission,
@@ -401,6 +406,43 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ("actor__username", "object_repr", "path")
     ordering_fields = ("created_at",)
     ordering = ("-created_at",)
+
+
+@extend_schema_view(
+    list=extend_schema(tags=["Notificações"]),
+    retrieve=extend_schema(tags=["Notificações"]),
+    mark_read=extend_schema(tags=["Notificações"]),
+    mark_all_read=extend_schema(
+        tags=["Notificações"],
+        responses=MarkAllNotificationsReadSerializer,
+    ),
+)
+class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = {"alert_type": ["exact"], "read_at": ["isnull", "exact"]}
+    search_fields = ("title", "message")
+    ordering_fields = ("created_at", "read_at")
+    ordering = ("-created_at",)
+
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return Notification.objects.none()
+        return Notification.objects.filter(recipient=self.request.user)
+
+    @action(detail=True, methods=("post",), url_path="mark-read")
+    def mark_read(self, request, pk=None):
+        notification = self.get_object()
+        if notification.read_at is None:
+            notification.read_at = timezone.now()
+            notification.save(update_fields=("read_at",))
+        return Response(self.get_serializer(notification).data)
+
+    @action(detail=False, methods=("post",), url_path="mark-all-read")
+    def mark_all_read(self, request):
+        updated = self.get_queryset().filter(read_at__isnull=True).update(read_at=timezone.now())
+        return Response({"updated": updated})
 
 
 class AssetTransferView(GenericAPIView):
