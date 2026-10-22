@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 
+from celery.schedules import crontab
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-development-only")
@@ -121,3 +123,21 @@ SIMPLE_JWT = {
 
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
+CELERY_BEAT_SCHEDULE = {
+    "inventory-alerts-daily": {
+        "task": "inventory.generate_alerts",
+        "schedule": crontab(
+            hour=int(os.getenv("INVENTORY_ALERT_HOUR", "8")),
+            minute=int(os.getenv("INVENTORY_ALERT_MINUTE", "0")),
+        ),
+    }
+}
+INVENTORY_WARRANTY_ALERT_DAYS = int(os.getenv("INVENTORY_WARRANTY_ALERT_DAYS", "30"))
+
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "inventario@example.com")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "true").lower() == "true"
