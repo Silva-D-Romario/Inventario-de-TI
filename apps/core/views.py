@@ -7,7 +7,7 @@ def health_check(_request: object) -> JsonResponse:
     return JsonResponse(
         {
             "application": "Inventário de TI",
-            "version": "0.8.0",
+            "version": "1.0.0",
             "status": "UP",
         }
     )
