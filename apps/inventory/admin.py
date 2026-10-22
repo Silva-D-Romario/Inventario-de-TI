@@ -10,6 +10,7 @@ from apps.inventory.models import (
     Category,
     Loan,
     Maintenance,
+    Notification,
     ResponsiblePerson,
     Sector,
     Warranty,
@@ -160,6 +161,33 @@ class AuditLogAdmin(admin.ModelAdmin):
         "path",
         "method",
         "request_id",
+        "created_at",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "recipient", "alert_type", "title", "read_at")
+    list_filter = ("alert_type", "read_at", "created_at")
+    search_fields = ("recipient__username", "recipient__email", "title", "message")
+    readonly_fields = (
+        "recipient",
+        "alert_type",
+        "title",
+        "message",
+        "resource_type",
+        "resource_id",
+        "dedup_key",
+        "read_at",
         "created_at",
     )
 
