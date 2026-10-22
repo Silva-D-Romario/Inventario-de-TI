@@ -428,6 +428,23 @@ class AssetAttachmentSerializer(serializers.ModelSerializer):
         path = reverse("asset-attachment-download", kwargs={"pk": instance.pk})
         return request.build_absolute_uri(path) if request else path
 
+    def validate_file(self, uploaded_file):
+        suffix = Path(uploaded_file.name).suffix.lower()
+        header = uploaded_file.read(16)
+        uploaded_file.seek(0)
+        valid_content = {
+            ".pdf": header.startswith(b"%PDF-"),
+            ".png": header.startswith(b"\x89PNG\r\n\x1a\n"),
+            ".jpg": header.startswith(b"\xff\xd8\xff"),
+            ".jpeg": header.startswith(b"\xff\xd8\xff"),
+            ".webp": header.startswith(b"RIFF") and header[8:12] == b"WEBP",
+        }
+        if not valid_content.get(suffix, False):
+            raise serializers.ValidationError(
+                "O conteúdo do arquivo não corresponde a um formato permitido."
+            )
+        return uploaded_file
+
     def validate(self, attrs):
         asset = attrs["asset"]
         maintenance = attrs.get("maintenance")

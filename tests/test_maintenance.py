@@ -368,7 +368,7 @@ def test_attachment_download_requires_authentication_and_delete_removes_file(
                 "description": "Nota fiscal",
                 "file": SimpleUploadedFile(
                     "nota-fiscal.pdf",
-                    b"conteudo do arquivo",
+                    b"%PDF-1.4 conteudo do arquivo",
                     content_type="application/pdf",
                 ),
             },
@@ -383,7 +383,7 @@ def test_attachment_download_requires_authentication_and_delete_removes_file(
         download_url = reverse("asset-attachment-download", kwargs={"pk": attachment.pk})
         download_response = api_client.get(download_url)
         assert download_response.status_code == 200
-        assert b"".join(download_response.streaming_content) == b"conteudo do arquivo"
+        assert b"".join(download_response.streaming_content) == b"%PDF-1.4 conteudo do arquivo"
 
         api_client.force_authenticate(user=None)
         unauthorized_response = api_client.get(download_url)
@@ -409,6 +409,27 @@ def test_attachment_rejects_unsupported_file(api_client, technician, asset):
                 "programa.exe",
                 b"arquivo inseguro",
                 content_type="application/octet-stream",
+            ),
+        },
+        format="multipart",
+    )
+
+    assert response.status_code == 400
+    assert "file" in response.data
+
+
+@pytest.mark.django_db
+def test_attachment_rejects_content_disguised_as_pdf(api_client, technician, asset):
+    authenticate(api_client, technician)
+
+    response = api_client.post(
+        reverse("asset-attachment-list"),
+        {
+            "asset": asset.pk,
+            "file": SimpleUploadedFile(
+                "documento.pdf",
+                b"executavel disfarcado",
+                content_type="application/pdf",
             ),
         },
         format="multipart",
