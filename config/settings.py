@@ -70,7 +70,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],
+        "DIRS": [BASE_DIR / "frontend_dist", BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -121,6 +121,11 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = (
+    [("frontend", BASE_DIR / "frontend_dist" / "assets")]
+    if (BASE_DIR / "frontend_dist" / "assets").exists()
+    else []
+)
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
@@ -153,7 +158,7 @@ REST_FRAMEWORK = {
 SPECTACULAR_SETTINGS = {
     "TITLE": "Inventário de TI API",
     "DESCRIPTION": "API para gestão de ativos, responsáveis e manutenções.",
-    "VERSION": "1.0.0",
+    "VERSION": "1.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
 
