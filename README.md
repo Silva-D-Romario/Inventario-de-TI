@@ -4,14 +4,20 @@ Sistema para controlar ativos de tecnologia, responsáveis, empréstimos, movime
 
 [![Qualidade Python](https://github.com/Silva-D-Romario/Inventario-de-TI/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Silva-D-Romario/Inventario-de-TI/actions/workflows/ci.yml)
 
-**Versão 1.0.0** — API pronta para execução local com Docker e preparação de deploy no Render.
+**Versão 1.1.0** — aplicação full stack com interface React, API Django e execução integrada por Docker.
 
 ## Objetivo
 
-Demonstrar desenvolvimento backend com Django, regras de negócio, autenticação, auditoria, tarefas assíncronas, testes e execução com Docker.
+Demonstrar desenvolvimento full stack com foco em backend: Django, regras de negócio, autenticação, auditoria, tarefas assíncronas, testes e uma interface React para operar o sistema.
 
 ## Recursos disponíveis
 
+- Interface responsiva inspirada em um painel corporativo.
+- Login, cadastro público e renovação transparente da sessão JWT.
+- Dashboard visual com indicadores, distribuições e movimentações recentes.
+- Consulta, filtros, criação e edição de ativos conforme o perfil.
+- Administração de categorias, setores e status pela interface.
+- Visão consolidada de empréstimos e manutenções.
 - Cadastro e autenticação com JWT.
 - Perfis de usuário, técnico e administrador.
 - Edição do próprio perfil.
@@ -36,6 +42,7 @@ Demonstrar desenvolvimento backend com Django, regras de negócio, autenticaçã
 
 - Python e Django
 - Django REST Framework
+- React, TypeScript e Vite
 - PostgreSQL
 - Celery e Redis
 - Docker Compose
@@ -46,7 +53,7 @@ Demonstrar desenvolvimento backend com Django, regras de negócio, autenticaçã
 
 ```mermaid
 flowchart LR
-    Cliente[Cliente HTTP] --> Django[Django + DRF]
+    Interface[React + TypeScript] --> Django[Django + DRF]
     Django --> PostgreSQL[(PostgreSQL)]
     Django --> Redis[(Redis)]
     Beat[Celery Beat] --> Redis
@@ -56,6 +63,8 @@ flowchart LR
 ```
 
 O Compose executa a API, PostgreSQL, Redis, Celery Worker e Celery Beat. O Beat agenda a verificação diária, o Redis entrega a tarefa e o Worker cria notificações persistentes e envia os e-mails configurados.
+
+A organização dos módulos e as responsabilidades de cada camada estão detalhadas em [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Deploy
 
@@ -72,9 +81,12 @@ docker compose up --build
 
 Serviços disponíveis:
 
+- Interface: `http://localhost:5173/`
 - API: `http://localhost:18000/api/v1/health/`
 - Swagger: `http://localhost:18000/api/docs/`
 - Administração Django: `http://localhost:18000/admin/`
+
+O serviço `frontend` usa o servidor Vite durante o desenvolvimento. A imagem final compila a interface e a entrega pela própria aplicação Django, sem exigir um segundo serviço em produção.
 
 ## Autenticação
 

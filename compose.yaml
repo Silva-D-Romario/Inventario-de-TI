@@ -1,11 +1,26 @@
 services:
+  frontend:
+    image: node:24-alpine
+    working_dir: /app
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
+    environment:
+      VITE_API_PROXY_TARGET: http://web:8000
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    depends_on:
+      web:
+        condition: service_healthy
+
   web:
     build: .
     env_file:
       - path: .env
         required: false
     environment:
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,web}
       POSTGRES_DB: ${POSTGRES_DB:-inventario_ti}
       POSTGRES_USER: ${POSTGRES_USER:-inventario_ti}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-inventario_ti}
@@ -102,6 +117,7 @@ services:
       retries: 5
 
 volumes:
+  frontend_node_modules:
   postgres_data:
   redis_data:
   media_data:
