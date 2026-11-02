@@ -63,6 +63,60 @@ export interface Asset {
   updated_at: string
 }
 
+export interface ResponsiblePerson {
+  id: number
+  name: string
+  email: string
+  employee_id: string | null
+  phone: string
+  sector: number
+  sector_name: string
+  is_active: boolean
+}
+
+export interface Loan {
+  id: number
+  asset: number
+  asset_tag: string
+  borrower: number
+  borrower_name: string
+  loaned_at: string
+  expected_return_date: string
+  returned_at: string | null
+  is_active: boolean
+  notes: string
+}
+
+export interface Maintenance {
+  id: number
+  asset: number
+  asset_tag: string
+  maintenance_type: 'PREVENTIVE' | 'CORRECTIVE'
+  maintenance_type_display: string
+  status: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+  status_display: string
+  description: string
+  provider: string
+  started_at: string
+  completed_at: string | null
+  cost: string | null
+  resolution_notes: string
+  is_active: boolean
+}
+
+export interface Notification {
+  id: number
+  alert_type: string
+  alert_type_display: string
+  title: string
+  message: string
+  resource_type: string
+  resource_id: number
+  is_read: boolean
+  read_at: string | null
+  created_at: string
+}
+
 export interface DashboardSummary {
   total_assets: number
   total_purchase_value: string
