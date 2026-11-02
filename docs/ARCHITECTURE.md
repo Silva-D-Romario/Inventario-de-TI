@@ -31,7 +31,9 @@ frontend/src/
 │   ├── auth/            # sessão, login e cadastro
 │   ├── dashboard/       # indicadores e movimentações
 │   ├── assets/          # consulta e CRUD de ativos
-│   ├── operations/      # empréstimos e manutenções
+│   ├── operations/      # responsáveis, empréstimos e manutenções
+│   ├── notifications/   # alertas isolados por usuário
+│   ├── reports/         # exportações CSV autenticadas
 │   └── catalogs/        # categorias, setores e status
 ├── lib/                 # cliente HTTP, tipos e formatadores
 └── styles/              # identidade visual e responsividade

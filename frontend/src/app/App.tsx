@@ -6,7 +6,9 @@ import { AuthPage } from '../features/auth/AuthPage'
 import { useAuth } from '../features/auth/AuthContext'
 import { CatalogsPage } from '../features/catalogs/CatalogsPage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
+import { NotificationsPage } from '../features/notifications/NotificationsPage'
 import { OperationsPage } from '../features/operations/OperationsPage'
+import { ReportsPage } from '../features/reports/ReportsPage'
 import { navigation, type Route } from './navigation'
 
 export function App() {
@@ -27,6 +29,8 @@ export function App() {
       {route === 'dashboard' && <DashboardPage />}
       {route === 'assets' && <AssetsPage />}
       {route === 'operations' && <OperationsPage />}
+      {route === 'notifications' && <NotificationsPage />}
+      {route === 'reports' && <ReportsPage />}
       {route === 'catalogs' && <CatalogsPage />}
     </AppShell>
   )
