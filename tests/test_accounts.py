@@ -155,6 +155,61 @@ def test_user_can_update_own_profile_but_not_role(api_client, user):
 
 
 @pytest.mark.django_db
+def test_user_can_change_own_password(api_client, user):
+    authenticate(api_client, user)
+
+    response = api_client.post(
+        reverse("password-change"),
+        {
+            "current_password": "SenhaSegura@2026",
+            "new_password": "NovaSenhaSegura@2026",
+            "password_confirmation": "NovaSenhaSegura@2026",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 204
+    user.refresh_from_db()
+    assert user.check_password("NovaSenhaSegura@2026")
+
+
+@pytest.mark.django_db
+def test_password_change_rejects_wrong_current_password(api_client, user):
+    authenticate(api_client, user)
+
+    response = api_client.post(
+        reverse("password-change"),
+        {
+            "current_password": "SenhaIncorreta@2026",
+            "new_password": "NovaSenhaSegura@2026",
+            "password_confirmation": "NovaSenhaSegura@2026",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "current_password" in response.data
+
+
+@pytest.mark.django_db
+def test_password_change_rejects_different_confirmation(api_client, user):
+    authenticate(api_client, user)
+
+    response = api_client.post(
+        reverse("password-change"),
+        {
+            "current_password": "SenhaSegura@2026",
+            "new_password": "NovaSenhaSegura@2026",
+            "password_confirmation": "OutraSenhaSegura@2026",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "password_confirmation" in response.data
+
+
+@pytest.mark.django_db
 def test_regular_user_cannot_list_users(api_client, user):
     authenticate(api_client, user)
 

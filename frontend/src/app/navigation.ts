@@ -1,9 +1,9 @@
-export type Route = 'dashboard' | 'assets' | 'asset-detail' | 'operations' | 'notifications' | 'reports' | 'catalogs'
+export type Route = 'dashboard' | 'assets' | 'asset-detail' | 'operations' | 'notifications' | 'reports' | 'catalogs' | 'profile' | 'users' | 'audit'
 
 const routeFromHash = (): Route => {
   const route = window.location.hash.replace(/^#\/?/, '')
   if (/^assets\/\d+$/.test(route)) return 'asset-detail'
-  return ['dashboard', 'assets', 'operations', 'notifications', 'reports', 'catalogs'].includes(route)
+  return ['dashboard', 'assets', 'operations', 'notifications', 'reports', 'catalogs', 'profile', 'users', 'audit'].includes(route)
     ? (route as Route)
     : 'dashboard'
 }

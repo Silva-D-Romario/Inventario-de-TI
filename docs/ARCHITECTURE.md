@@ -34,6 +34,9 @@ frontend/src/
 │   ├── operations/      # responsáveis, empréstimos e manutenções
 │   ├── notifications/   # alertas isolados por usuário
 │   ├── reports/         # exportações CSV autenticadas
+│   ├── profile/         # dados pessoais e segurança da conta
+│   ├── users/           # administração de acessos
+│   ├── audit/           # consulta da trilha de auditoria
 │   └── catalogs/        # categorias, setores e status
 ├── lib/                 # cliente HTTP, tipos e formatadores
 └── styles/              # identidade visual e responsividade
