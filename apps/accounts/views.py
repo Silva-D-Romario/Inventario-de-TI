@@ -1,10 +1,16 @@
 from drf_spectacular.utils import extend_schema
-from rest_framework import generics
+from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
 
 from apps.accounts.models import User
 from apps.accounts.permissions import IsAdministrator
-from apps.accounts.serializers import RegisterSerializer, UserRoleSerializer, UserSerializer
+from apps.accounts.serializers import (
+    PasswordChangeSerializer,
+    RegisterSerializer,
+    UserRoleSerializer,
+    UserSerializer,
+)
 
 
 class RegisterView(generics.CreateAPIView):
@@ -21,6 +27,17 @@ class CurrentUserView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class PasswordChangeView(generics.GenericAPIView):
+    serializer_class = PasswordChangeSerializer
+
+    @extend_schema(summary="Alterar a própria senha", responses={204: None})
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class UserListView(generics.ListAPIView):

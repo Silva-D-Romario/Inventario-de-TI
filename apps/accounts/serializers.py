@@ -58,3 +58,28 @@ class UserRoleSerializer(serializers.ModelSerializer):
         if request.user == self.instance:
             raise serializers.ValidationError("Altere o acesso de outro administrador.")
         return attrs
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True)
+    password_confirmation = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        user = self.context["request"].user
+        if not user.check_password(attrs["current_password"]):
+            raise serializers.ValidationError({"current_password": "A senha atual está incorreta."})
+        if attrs["new_password"] != attrs["password_confirmation"]:
+            raise serializers.ValidationError({"password_confirmation": "As senhas não coincidem."})
+        if attrs["current_password"] == attrs["new_password"]:
+            raise serializers.ValidationError(
+                {"new_password": "A nova senha deve ser diferente da senha atual."}
+            )
+        validate_password(attrs["new_password"], user=user)
+        return attrs
+
+    def save(self, **kwargs):
+        user = self.context["request"].user
+        user.set_password(self.validated_data["new_password"])
+        user.save(update_fields=("password",))
+        return user
