@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 import { AppShell } from '../components/layout/AppShell'
 import { AssetsPage } from '../features/assets/AssetsPage'
+import { AssetDetailPage } from '../features/assets/detail/AssetDetailPage'
 import { AuthPage } from '../features/auth/AuthPage'
 import { useAuth } from '../features/auth/AuthContext'
 import { CatalogsPage } from '../features/catalogs/CatalogsPage'
@@ -14,6 +15,7 @@ import { navigation, type Route } from './navigation'
 export function App() {
   const { user, loading } = useAuth()
   const [route, setRoute] = useState<Route>(navigation.current)
+  const assetId = route === 'asset-detail' ? navigation.assetId() : null
 
   useEffect(() => {
     const syncRoute = () => setRoute(navigation.current())
@@ -28,6 +30,7 @@ export function App() {
     <AppShell route={route} onNavigate={navigation.go}>
       {route === 'dashboard' && <DashboardPage />}
       {route === 'assets' && <AssetsPage />}
+      {route === 'asset-detail' && assetId !== null && <AssetDetailPage assetId={assetId} />}
       {route === 'operations' && <OperationsPage />}
       {route === 'notifications' && <NotificationsPage />}
       {route === 'reports' && <ReportsPage />}
