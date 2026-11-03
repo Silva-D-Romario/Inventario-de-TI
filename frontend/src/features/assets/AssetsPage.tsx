@@ -7,6 +7,7 @@ import { ApiError, api } from '../../lib/api'
 import { formatCurrency, formatDate } from '../../lib/format'
 import type { Asset, AssetStatus, Category, Page, Sector } from '../../lib/types'
 import { AssetForm } from './AssetForm'
+import { navigation } from '../../app/navigation'
 
 export function AssetsPage() {
   const { user } = useAuth()
@@ -75,7 +76,7 @@ export function AssetsPage() {
               <td>{asset.category_name}</td><td>{asset.sector_name}</td>
               <td><span className="status-pill"><i style={{ background: asset.status_color }} />{asset.status_name}</span></td>
               <td><span>{formatCurrency(asset.purchase_value)}</span><small>{formatDate(asset.acquisition_date)}</small></td>
-              <td><div className="row-actions">{canEdit && <button className="text-button" onClick={() => setEditing(asset)}>Editar</button>}{canDelete && <button className="text-button danger" onClick={() => remove(asset)}>Excluir</button>}</div></td>
+              <td><div className="row-actions"><button className="text-button" onClick={() => navigation.asset(asset.id)}>Detalhes</button>{canEdit && <button className="text-button" onClick={() => setEditing(asset)}>Editar</button>}{canDelete && <button className="text-button danger" onClick={() => remove(asset)}>Excluir</button>}</div></td>
             </tr>
           ))}</tbody></table></div>
           <div className="pagination"><button className="secondary-button" disabled={!assets.previous} onClick={() => setPage((value) => value - 1)}>Anterior</button><span>Página {page} · {assets.count} registro(s)</span><button className="secondary-button" disabled={!assets.next} onClick={() => setPage((value) => value + 1)}>Próxima</button></div>

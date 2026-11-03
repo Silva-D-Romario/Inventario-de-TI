@@ -30,7 +30,7 @@ frontend/src/
 ├── features/
 │   ├── auth/            # sessão, login e cadastro
 │   ├── dashboard/       # indicadores e movimentações
-│   ├── assets/          # consulta e CRUD de ativos
+│   ├── assets/          # CRUD, detalhes e recursos vinculados aos ativos
 │   ├── operations/      # responsáveis, empréstimos e manutenções
 │   ├── notifications/   # alertas isolados por usuário
 │   ├── reports/         # exportações CSV autenticadas

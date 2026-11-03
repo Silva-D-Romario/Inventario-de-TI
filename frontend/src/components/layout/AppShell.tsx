@@ -56,7 +56,7 @@ export function AppShell({ route, onNavigate, children }: AppShellProps) {
           {navigationItems.filter((item) => (!item.adminOnly || user.role === 'ADMIN') && (!item.operationalOnly || user.role !== 'USER')).map((item) => (
             <button
               key={item.route}
-              className={`nav-item ${route === item.route ? 'active' : ''}`}
+              className={`nav-item ${route === item.route || (item.route === 'assets' && route === 'asset-detail') ? 'active' : ''}`}
               onClick={() => onNavigate(item.route)}
             >
               <span aria-hidden="true">{item.icon}</span>{item.label}

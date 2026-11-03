@@ -79,14 +79,14 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
   return payload as T
 }
 
-export async function download(path: string, filename: string, retry = true): Promise<void> {
+export async function fetchBlob(path: string, retry = true): Promise<Blob> {
   const access = localStorage.getItem(ACCESS_KEY)
   const response = await fetch(path, {
     headers: access ? { Authorization: `Bearer ${access}` } : {},
   })
 
   if (response.status === 401 && retry && (await refreshAccessToken())) {
-    return download(path, filename, false)
+    return fetchBlob(path, false)
   }
 
   if (!response.ok) {
@@ -94,7 +94,11 @@ export async function download(path: string, filename: string, retry = true): Pr
     throw new ApiError(messageFromPayload(payload), response.status, payload)
   }
 
-  const objectUrl = URL.createObjectURL(await response.blob())
+  return response.blob()
+}
+
+export async function download(path: string, filename: string): Promise<void> {
+  const objectUrl = URL.createObjectURL(await fetchBlob(path))
   const anchor = document.createElement('a')
   anchor.href = objectUrl
   anchor.download = filename

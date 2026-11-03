@@ -52,6 +52,7 @@ export interface Asset {
   status_color: string
   responsible: number | null
   responsible_name: string | null
+  qr_code_url: string
   serial_number: string | null
   manufacturer: string
   model: string
@@ -102,6 +103,59 @@ export interface Maintenance {
   cost: string | null
   resolution_notes: string
   is_active: boolean
+}
+
+export interface Warranty {
+  id: number
+  asset: number
+  asset_tag: string
+  provider: string
+  contract_number: string
+  start_date: string
+  end_date: string
+  coverage_notes: string
+  is_active: boolean
+}
+
+export interface AssetCost {
+  id: number
+  asset: number
+  asset_tag: string
+  maintenance: number | null
+  cost_type: 'PURCHASE' | 'MAINTENANCE' | 'LICENSE' | 'OTHER'
+  cost_type_display: string
+  amount: string
+  occurred_on: string
+  description: string
+}
+
+export interface AssetAttachment {
+  id: number
+  asset: number
+  asset_tag: string
+  maintenance: number | null
+  file_name: string
+  download_url: string
+  description: string
+  uploaded_by_username: string | null
+  created_at: string
+}
+
+export interface AssetMovement {
+  id: number
+  asset: number
+  asset_tag: string
+  movement_type: string
+  movement_type_display: string
+  from_sector: number | null
+  from_sector_name: string | null
+  to_sector: number | null
+  to_sector_name: string | null
+  responsible: number | null
+  responsible_name: string | null
+  performed_by_username: string | null
+  notes: string
+  created_at: string
 }
 
 export interface Notification {

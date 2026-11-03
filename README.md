@@ -4,7 +4,7 @@ Sistema para controlar ativos de tecnologia, responsáveis, empréstimos, movime
 
 [![Qualidade Python](https://github.com/Silva-D-Romario/Inventario-de-TI/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Silva-D-Romario/Inventario-de-TI/actions/workflows/ci.yml)
 
-**Versão 1.2.0** — aplicação full stack com interface React, API Django e execução integrada por Docker.
+**Versão 1.3.0** — aplicação full stack com interface React, API Django e execução integrada por Docker.
 
 ## Objetivo
 
@@ -16,6 +16,7 @@ Demonstrar desenvolvimento full stack com foco em backend: Django, regras de neg
 - Login, cadastro público e renovação transparente da sessão JWT.
 - Dashboard visual com indicadores, distribuições e movimentações recentes.
 - Consulta, filtros, criação e edição de ativos conforme o perfil.
+- Tela completa do ativo com transferência, garantias, custos, documentos, QR Code e histórico.
 - Administração de categorias, setores e status pela interface.
 - Operação completa de empréstimos, devoluções e manutenções pela interface.
 - Cadastro, edição e exclusão protegida de responsáveis.
