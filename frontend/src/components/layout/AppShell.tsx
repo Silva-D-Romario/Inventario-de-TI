@@ -13,6 +13,8 @@ const navigationItems: Array<{ route: Route; label: string; icon: string; adminO
   { route: 'notifications', label: 'Notificações', icon: '●' },
   { route: 'reports', label: 'Relatórios', icon: '↓', operationalOnly: true },
   { route: 'catalogs', label: 'Cadastros', icon: '≡', adminOnly: true },
+  { route: 'users', label: 'Usuários', icon: '◎', adminOnly: true },
+  { route: 'audit', label: 'Auditoria', icon: '⌕', adminOnly: true },
 ]
 
 interface AppShellProps {
@@ -71,7 +73,7 @@ export function AppShell({ route, onNavigate, children }: AppShellProps) {
         <div className="user-menu">
           <span className="user-avatar">{initials(displayName)}</span>
           <div><strong>{displayName}</strong><small>{user.role_display}</small></div>
-          <button type="button" onClick={logout}>Sair</button>
+          <div className="user-menu-actions"><button type="button" onClick={() => onNavigate('profile')}>Editar perfil</button><button type="button" onClick={logout}>Sair</button></div>
         </div>
       </aside>
       <main className="page-content">{children}</main>

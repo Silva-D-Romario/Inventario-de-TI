@@ -171,6 +171,24 @@ export interface Notification {
   created_at: string
 }
 
+export interface AuditLog {
+  id: number
+  actor: number | null
+  actor_username: string | null
+  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'ACTION' | 'SCAN'
+  action_display: string
+  resource_type: string
+  object_id: string
+  object_repr: string
+  changes: Record<string, unknown>
+  ip_address: string | null
+  user_agent: string
+  path: string
+  method: string
+  request_id: string
+  created_at: string
+}
+
 export interface DashboardSummary {
   total_assets: number
   total_purchase_value: string
