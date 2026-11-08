@@ -9,7 +9,7 @@ def test_health_check_returns_application_status(client: Client) -> None:
     assert response.status_code == 200
     assert response.json() == {
         "application": "Inventário de TI",
-        "version": "1.4.0",
+        "version": "1.5.0",
         "status": "UP",
     }
 

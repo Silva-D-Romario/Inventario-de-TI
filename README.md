@@ -4,7 +4,7 @@ Sistema para controlar ativos de tecnologia, responsáveis, empréstimos, movime
 
 [![Qualidade Python](https://github.com/Silva-D-Romario/Inventario-de-TI/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Silva-D-Romario/Inventario-de-TI/actions/workflows/ci.yml)
 
-**Versão 1.4.0** — aplicação full stack com interface React, API Django e execução integrada por Docker.
+**Versão 1.5.0** — aplicação full stack com interface React, API Django e execução integrada por Docker.
 
 ## Objetivo
 
@@ -145,6 +145,30 @@ docker compose exec web python manage.py createsuperuser
 ```
 
 Em hospedagem, o comando `bootstrap_admin` cria a primeira conta somente quando `APP_ADMIN_USERNAME`, `APP_ADMIN_EMAIL` e `APP_ADMIN_PASSWORD` são fornecidos. Ele nunca redefine a senha de uma conta existente.
+
+### Cenário demonstrativo
+
+Depois de cadastrar `romario.tech` e `romario.default` pela interface, gere dados para testar todas as áreas:
+
+```bash
+docker compose exec web python manage.py seed_demo_data
+```
+
+O comando é idempotente: pode ser executado novamente sem duplicar o cenário. Ele:
+
+- promove `romario.tech` para técnico e mantém `romario.default` como usuário comum;
+- cria seis ativos distribuídos entre disponível, em uso, manutenção e baixado;
+- cria categorias, setores, responsáveis, empréstimo vencido e histórico de manutenção;
+- adiciona garantias e custos para validar detalhes e relatórios;
+- gera alertas para administradores e técnicos.
+
+Os nomes podem ser personalizados sem alterar senhas:
+
+```bash
+docker compose exec web python manage.py seed_demo_data \
+  --technician outro.tecnico \
+  --regular-user outro.usuario
+```
 
 ## Inventário
 
@@ -396,3 +420,5 @@ Os testes de interface cobrem autenticação, cadastro, renovação JWT, tratame
 
 - `main`: versão estável.
 - `develop`: desenvolvimento e validação antes da PR.
+
+O processo completo de planejamento, commits, testes, pull request e release está documentado em [CONTRIBUTING.md](CONTRIBUTING.md).
