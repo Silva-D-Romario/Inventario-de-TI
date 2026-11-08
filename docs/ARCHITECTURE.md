@@ -38,15 +38,18 @@ frontend/src/
 │   ├── users/           # administração de acessos
 │   ├── audit/           # consulta da trilha de auditoria
 │   └── catalogs/        # categorias, setores e status
-├── lib/                 # cliente HTTP, tipos e formatadores
+├── lib/                 # cliente HTTP, tipos, formatadores e testes de integração
+├── test/                # configuração compartilhada do Vitest
 └── styles/              # identidade visual e responsividade
 ```
 
 O cliente HTTP centraliza JWT, renovação do token, erros e encerramento de sessão. As funcionalidades não conhecem detalhes do armazenamento dos tokens. Permissões também são refletidas na interface, mas a API continua sendo a autoridade final.
+
+Os testes do frontend usam Vitest, Testing Library e JSDOM. Eles exercitam os formulários pela perspectiva do usuário e simulam apenas os limites externos, como chamadas HTTP e o contexto de autenticação.
 
 ## Execução e entrega
 
 - No desenvolvimento, o Vite usa proxy para a API em `localhost:18000`.
 - No build, o Docker compila o React antes de montar a imagem Python.
 - Em produção, Django e WhiteNoise entregam a SPA e seus arquivos estáticos na mesma origem da API.
-- A CI valida Python, TypeScript, lint, testes, contratos, auditorias e build Docker.
+- A CI valida Python, TypeScript, lint, testes de backend e frontend, contratos, auditorias e build Docker.
