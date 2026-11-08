@@ -53,7 +53,7 @@ Demonstrar desenvolvimento full stack com foco em backend: Django, regras de neg
 - PostgreSQL
 - Celery e Redis
 - Docker Compose
-- Pytest e Ruff
+- Pytest, Vitest, Testing Library e Ruff
 - GitHub Actions
 
 ## Arquitetura inicial
@@ -367,6 +367,18 @@ DJANGO_ALLOWED_HOSTS=example.com \
 python manage.py check --deploy
 pip-audit --skip-editable
 ```
+
+Validações do frontend:
+
+```bash
+cd frontend
+npm ci
+npm run lint
+npm test
+npm run build
+```
+
+Os testes de interface cobrem autenticação, cadastro, renovação JWT, tratamento de erros, edição do perfil e troca de senha.
 
 ## Etapas
 

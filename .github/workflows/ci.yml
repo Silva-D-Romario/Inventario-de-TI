@@ -39,6 +39,9 @@ jobs:
       - name: Executar análise estática
         run: npm run lint
 
+      - name: Executar testes do frontend
+        run: npm test
+
       - name: Validar build do frontend
         run: npm run build
 
