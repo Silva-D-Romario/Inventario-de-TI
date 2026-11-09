@@ -19,10 +19,14 @@ export function AssetForm({ asset, categories, sectors, statuses, onCancel, onSa
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
-    const payload = Object.fromEntries(form.entries()) as Record<string, string>
-    payload.category = String(Number(payload.category))
-    payload.sector = String(Number(payload.sector))
-    payload.status = String(Number(payload.status))
+    const entries = Object.fromEntries(form.entries()) as Record<string, string>
+    const payload: Record<string, string | number> = {
+      ...entries,
+      category: Number(entries.category),
+      status: Number(entries.status),
+    }
+    if (asset) delete payload.sector
+    else payload.sector = Number(entries.sector)
     if (!payload.purchase_value) delete payload.purchase_value
     if (!payload.acquisition_date) delete payload.acquisition_date
 
